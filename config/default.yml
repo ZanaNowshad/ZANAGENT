@@ -1,0 +1,22 @@
+providers:
+  - name: echo
+    type: echo
+    streaming: false
+memory:
+  database: sqlite:///./.vortex/memory.db
+  vector_backend: simple
+security:
+  sandbox_enabled: true
+  allowed_modules:
+    - math
+    - json
+    - vortex
+  forbidden_modules:
+    - os
+    - sys
+planner:
+  max_parallel_tasks: 4
+  recovery_retries: 1
+ui:
+  enable_progress: true
+  theme: default

@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=67", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vortex"
+version = "0.1.0"
+description = "Vortex AI agent framework"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  {name = "Vortex Maintainers", email = "maintainers@example.com"}
+]
+dependencies = [
+  "typer[all]>=0.9",
+  "rich>=13.3",
+  "pydantic>=2.5",
+  "pyyaml>=6",
+  "sqlalchemy>=2.0",
+  "httpx>=0.24",
+  "aiosqlite>=0.18",
+  "python-dotenv>=1.0",
+  "cryptography>=41.0",
+  "uvloop; platform_system != 'Windows'",
+  "orjson>=3.9",
+  "pytest-cov>=4.1"
+]
+
+[project.optional-dependencies]
+extras = [
+  "chromadb>=0.4",
+  "faiss-cpu>=1.7"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vortex*"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+branch = true
+source = ["vortex"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
