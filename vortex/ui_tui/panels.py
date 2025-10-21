@@ -6,8 +6,10 @@ from typing import Iterable, Optional
 
 from rich.console import RenderableType
 from rich.text import Text
+from textual import on
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, Vertical
+from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import (
     DirectoryTree,
@@ -22,6 +24,7 @@ from textual.widgets import (
 )
 
 from .help import help_renderable
+from .palette import PaletteEntry
 from .settings import TUISettings
 
 
@@ -130,12 +133,50 @@ class HelpPanel(VortexPanel):
 class CommandBar(Container):
     """Bottom command input used for slash commands and palette."""
 
+    class SuggestionSelected(Message):
+        """Message raised when an autocomplete entry is activated."""
+
+        def __init__(self, command: str) -> None:
+            super().__init__()
+            self.command = command
+
     def __init__(self) -> None:
         super().__init__(id="command-bar")
         self.input = Input(placeholder="/plan or :palette", id="command-input")
+        self.suggestions = ListView(id="command-suggestions")
+        self.suggestions.can_focus = False
+        self.suggestions.add_class("hidden")
 
     def compose(self) -> ComposeResult:
         yield self.input
+        yield self.suggestions
+
+    def update_suggestions(self, entries: list[PaletteEntry]) -> None:
+        """Render fuzzy suggestions below the command input."""
+
+        self.suggestions.clear()
+        if not entries:
+            self.suggestions.add_class("hidden")
+            return
+        items = [
+            ListItem(Label(f"{entry.command} — {entry.hint}"), id=f"suggestion-{index}")
+            for index, entry in enumerate(entries)
+        ]
+        for entry, item in zip(entries, items, strict=False):
+            item.data = entry.command
+        self.suggestions.extend(items)
+        self.suggestions.remove_class("hidden")
+
+    def clear_suggestions(self) -> None:
+        self.suggestions.clear()
+        self.suggestions.add_class("hidden")
+
+    @on(ListView.Selected, "#command-suggestions")
+    def _suggestion_selected(self, event: ListView.Selected) -> None:
+        item = event.item
+        command = getattr(item, "data", None)
+        if isinstance(command, str):
+            self.post_message(self.SuggestionSelected(command))
 
 
 class TelemetryBar(Static):

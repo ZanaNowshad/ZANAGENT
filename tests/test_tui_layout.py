@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 pytest.importorskip("textual")
 
 from vortex.ui_tui.layout import build_layout
+from vortex.ui_tui.palette import PaletteEntry
 from vortex.ui_tui.panels import CommandBar, ContextPanel, MainPanel, TelemetryBar
+from vortex.ui_tui.settings import TUISettingsManager
 
 
 def test_build_layout_metadata(tmp_path: Path) -> None:
@@ -29,6 +32,32 @@ def test_command_bar_placeholder() -> None:
     assert bar.input.placeholder == "/plan or :palette"
 
 
+def test_command_bar_suggestions_toggle() -> None:
+    bar = CommandBar()
+    entry = PaletteEntry(label="Plan", hint="Plan", command="/plan")
+    bar.update_suggestions([entry])
+    assert not bar.suggestions.has_class("hidden")
+    assert len(bar.suggestions.children) == 1
+    bar.clear_suggestions()
+    assert bar.suggestions.has_class("hidden")
+
+
+def test_command_bar_suggestion_selected_message() -> None:
+    bar = CommandBar()
+    entry = PaletteEntry(label="Plan", hint="Plan", command="/plan")
+    bar.update_suggestions([entry])
+    captured: list[CommandBar.SuggestionSelected] = []
+
+    def capture(message: CommandBar.SuggestionSelected) -> None:
+        captured.append(message)
+
+    bar.post_message = capture  # type: ignore[assignment]
+    event = SimpleNamespace(item=bar.suggestions.children[0])
+    event.item.data = entry.command  # type: ignore[attr-defined]
+    bar._suggestion_selected(event)  # type: ignore[arg-type]
+    assert captured and captured[0].command == "/plan"
+
+
 def test_context_panel_stores_path(tmp_path: Path) -> None:
     panel = ContextPanel(tmp_path)
     assert panel.id == "context-panel"
@@ -39,3 +68,19 @@ def test_telemetry_bar_defaults() -> None:
     bar = TelemetryBar()
     assert bar.cpu_usage == 0.0
     assert "CPU" in bar.render().plain
+
+
+@pytest.mark.asyncio
+async def test_settings_manager_persistence(tmp_path: Path) -> None:
+    manager = TUISettingsManager(
+        global_path=tmp_path / "config.toml", local_path=tmp_path / "session.toml"
+    )
+    settings = await manager.load()
+    settings.model = "gpt-4"
+    settings.theme = "light"
+    settings.custom_theme_path = tmp_path / "theme.yaml"
+    await manager.persist(settings)
+    reloaded = await manager.reload()
+    assert reloaded.model == "gpt-4"
+    assert reloaded.theme == "light"
+    assert reloaded.custom_theme_path == tmp_path / "theme.yaml"

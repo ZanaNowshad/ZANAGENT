@@ -24,8 +24,10 @@ survive terminal restarts. The TUI honours the global configuration stored in
 The first launch presents a multi-step wizard collecting:
 
 1. **Model** preference and narration verbosity.
-2. **Theme** selection (dark, light, or high contrast) plus narration toggle.
-3. **Safety & privacy** knobs (telemetry consent, write guard, accessibility).
+2. **Theme** selection (dark, light, or high contrast) plus narration toggle. Custom
+   themes can be imported later via `/theme custom <path>`.
+3. **Safety & privacy** knobs (telemetry consent, write guard, accessibility, feature
+   flags).
 
 Answers persist in the operator config and are replayed on subsequent sessions.
 Invoke the wizard again at any time via `/settings` or `Ctrl+,`.
@@ -66,8 +68,12 @@ commands include:
 | `/mode <chat|fix|gen|review|run|plan|diff>` | Switch the main panel mode |
 | `/budget <minutes>` | Update the remaining budget in minutes |
 | `/auto <steps>` | Configure autonomous execution depth |
-| `/accessibility <on|off|minimal|verbose>` | Toggle narration level |
+| `/accessibility <on|off>` | Toggle announcements |
+| `/accessibility verbosity <minimal|normal|verbose>` | Adjust narration granularity |
+| `/accessibility narration <on|off>` | Enable or disable narration cues |
+| `/accessibility contrast <on|off>` | Toggle high-contrast palette |
 | `/theme <dark|light|high_contrast>` | Switch theme and high-contrast mode |
+| `/theme custom <path>` | Load custom TOML/YAML theme overrides |
 | `/settings` | Launch the settings surface |
 | `/lyra [prompt]` | Open the Lyra inline assistant for quick tips |
 | `/doctor` | Run diagnostics on terminal, fonts, and colours |
@@ -78,7 +84,10 @@ commands include:
 Slash commands integrate with the runtime managers (planner, workflow engine,
 memory, plugin system, cost tracker, git integration) and log results in the
 main panel with timestamps for traceability. Results include plain-text
-summaries so screen readers can announce diffs and log entries.
+summaries so screen readers can announce diffs, diagnostics, and log entries.
+Type `:` to access the palette; the inline autocomplete surfaces commands,
+tools, files, and tests using RapidFuzz scoring. `:q` serves as a quick alias
+for `/quit`.
 
 ## Keyboard Shortcuts
 
@@ -94,7 +103,7 @@ summaries so screen readers can announce diffs and log entries.
 | `:` | Open the command palette |
 | `?` | Toggle help |
 | `Ctrl+,` | Open settings |
-| `Ctrl+T` | Reload the active theme |
+| `Ctrl+T` | Reload the active theme (`/reload theme`) |
 | `Ctrl+R` | Show recent command history |
 | `Ctrl+Q` | Prompt to quit |
 | `j`/`k` | Navigate list items |
@@ -104,14 +113,17 @@ summaries so screen readers can announce diffs and log entries.
 
 ## Performance & Accessibility
 
-- Rendering is governed by a refresh coalescer targeting ~60 fps (tune via the
-  `VORTEX_TUI_FPS` environment variable). Heavy operations such as git status are
-  executed in background workers to keep the UI responsive.
+- Rendering is governed by refresh and panel coalescers targeting ~60 fps (tune via the
+  `VORTEX_TUI_FPS` environment variable). Heavy operations such as git status run via
+  Textual's `work` API to avoid blocking the UI.
 - The telemetry bar surfaces live CPU and memory usage using `psutil`. Disable
   colour entirely with `--no-color` for legacy terminals.
 - Accessibility narration is available through `--screen-reader`, the
   `/accessibility` command, or settings. Verbosity can be set to `minimal`,
-  `normal`, or `verbose`. Plain-text diffs/logs are produced for screen readers.
+  `normal`, or `verbose`. Plain-text summaries and progress announcements are
+  emitted for diffs, diagnostics, and background work.
+- `/accessibility narration on` toggles screen-reader narration; `/accessibility contrast on`
+  switches to a WCAG AA high-contrast palette.
 
 ## Lyra Assistant
 
@@ -119,6 +131,11 @@ Toggle Lyra with `/lyra [prompt]` or pick it from the palette. The assistant
 streams inline Markdown guidance derived from the configured model manager.
 Enable or disable Lyra at runtime in the settings panel (feature flag
 `lyra_assistant`). Responses are added to the session log for later recall.
+
+## Shortcuts Table
+
+Refer to the keyboard table above for a quick mapping of action keys. Use
+`Ctrl+R` to surface searchable command history and `Ctrl+T` for live theme reloads.
 
 ## Diagnostics & Doctor
 

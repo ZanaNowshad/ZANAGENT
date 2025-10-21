@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import asyncio
 import os
+from itertools import cycle
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional
 
 from rich.table import Table
 from rich.text import Text
@@ -30,7 +31,7 @@ from .hotkeys import bindings_for_app
 from .layout import build_layout
 from .lyra_assistant import LyraAssistant
 from .palette import search_entries
-from .panels import MainPanel, StatusPanel, TelemetryBar, ToolPanel
+from .panels import CommandBar, MainPanel, StatusPanel, TelemetryBar, ToolPanel
 from .settings import InitialSetupWizard, SettingsScreen, TUISettings, TUISettingsManager
 from .status import StatusAggregator, StatusSnapshot
 from .themes import ThemeError, theme_css
@@ -53,6 +54,29 @@ class RefreshCoalescer:
 
     async def _dispatch(self) -> None:
         await asyncio.sleep(self._interval)
+        await self._app.refresh()
+
+
+class PanelUpdateCoalescer:
+    """Batch panel mutations to avoid redundant redraws."""
+
+    def __init__(self, app: App[Any], interval: float) -> None:
+        self._app = app
+        self._interval = interval
+        self._pending: list[Callable[[], None]] = []
+        self._task: Optional[asyncio.Task[None]] = None
+
+    def enqueue(self, callback: Callable[[], None]) -> None:
+        self._pending.append(callback)
+        if self._task is None or self._task.done():
+            self._task = asyncio.create_task(self._flush())
+
+    async def _flush(self) -> None:
+        await asyncio.sleep(self._interval)
+        callbacks = self._pending
+        self._pending = []
+        for callback in callbacks:
+            callback()
         await self._app.refresh()
 
 
@@ -110,6 +134,7 @@ class VortexTUI(App[None]):
         fps = max(15, min(120, int(os.getenv("VORTEX_TUI_FPS", "60"))))
         self._frame_interval = 1.0 / fps
         self._refresh_coalescer = RefreshCoalescer(self, self._frame_interval)
+        self._panel_coalescer: Optional[PanelUpdateCoalescer] = None
         self.actions: Optional[TUIActionCenter] = None
         self.announcer: Optional[AccessibilityAnnouncer] = None
         self.lyra = LyraAssistant(runtime)
@@ -118,6 +143,10 @@ class VortexTUI(App[None]):
         self._focus_index = 0
         self._telemetry_bar: Optional[TelemetryBar] = None
         self._last_status: Optional[StatusSnapshot] = None
+        self.command_bar: Optional[CommandBar] = None
+        self._main_panel: Optional[MainPanel] = None
+        self._spinner_task: Optional[asyncio.Task[None]] = None
+        self._spinner_label: Optional[str] = None
 
     def _load_state(self, options: TUIOptions) -> TUISessionState:
         if options.resume:
@@ -137,6 +166,9 @@ class VortexTUI(App[None]):
         yield layout
 
     async def on_mount(self) -> None:
+        self._main_panel = self.query_one("#main-panel", MainPanel)
+        self.command_bar = self.query_one("#command-bar", CommandBar)
+        self._panel_coalescer = PanelUpdateCoalescer(self, max(self._frame_interval / 2, 0.005))
         self.tui_settings = await self.settings_manager.load()
         if await self.settings_manager.needs_initial_setup():
             wizard = InitialSetupWizard(self.tui_settings)
@@ -155,6 +187,7 @@ class VortexTUI(App[None]):
             announce_narration=self.state.narration_enabled,
         )
         self.announcer = AccessibilityAnnouncer(self, preferences=prefs)
+        self.announcer.set_high_contrast(self.state.high_contrast)
         self.actions = TUIActionCenter(
             self.runtime,
             self.state,
@@ -201,13 +234,62 @@ class VortexTUI(App[None]):
             css = theme_css("dark", no_color=self.options.no_color)
         self._theme_css = css
         self.stylesheet.read(css)
+        if self.announcer:
+            self.announcer.set_high_contrast(self.state.high_contrast)
+
+    def _panel_update(self, callback: Callable[[], None]) -> None:
+        if self._panel_coalescer:
+            self._panel_coalescer.enqueue(callback)
+        else:
+            callback()
+            self._refresh_coalescer.request()
+
+    def _start_spinner(self, label: str) -> None:
+        if self._spinner_task and not self._spinner_task.done():
+            self._spinner_task.cancel()
+        self._spinner_label = label
+        self._spinner_task = asyncio.create_task(self._spinner_loop(label))
+        if self.announcer:
+            asyncio.create_task(self.announcer.announce_progress(label.title()))
+
+    async def _stop_spinner(self) -> None:
+        if self._spinner_task:
+            self._spinner_task.cancel()
+            try:
+                await self._spinner_task
+            except asyncio.CancelledError:
+                pass
+            finally:
+                self._spinner_task = None
+                self._spinner_label = None
+                self._refresh_coalescer.request()
+
+    async def _spinner_loop(self, label: str) -> None:
+        panel = self._main_panel or self.query_one("#main-panel", MainPanel)
+        frames = cycle(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"])
+        try:
+            while True:
+                frame = next(frames)
+                text = Text(f"{frame} {label.capitalize()}…", style="cyan")
+
+                def apply(renderable: Text = text) -> None:
+                    panel.show(renderable, plain_text=f"{label} in progress")
+
+                self._panel_update(apply)
+                await asyncio.sleep(max(self._frame_interval, 0.08))
+        except asyncio.CancelledError:
+            raise
 
     def _restore_logs(self) -> None:
         if not self.state.logs:
             return
-        panel = self.query_one("#main-panel", MainPanel)
-        for entry in self.state.logs[-50:]:
-            panel.append(Text(entry.format()), plain_text=entry.format())
+        panel = self._main_panel or self.query_one("#main-panel", MainPanel)
+
+        def apply() -> None:
+            for entry in self.state.logs[-50:]:
+                panel.append(Text(entry.format()), plain_text=entry.format())
+
+        self._panel_update(apply)
 
     async def on_unmount(self) -> None:
         self.bridge.save_state(self.state)
@@ -222,7 +304,7 @@ class VortexTUI(App[None]):
             return
         checkpoint = self.state.latest_checkpoint()
         with profile("status_refresh"):
-            worker = self.run_worker(
+            worker = self.work(
                 self.status.gather(
                     mode=self.state.mode,
                     budget_minutes=self.state.budget_minutes,
@@ -230,6 +312,7 @@ class VortexTUI(App[None]):
                 ),
                 exclusive=True,
                 name="status-gather",
+                group="status",
             )
             try:
                 snapshot = await worker.wait()
@@ -252,60 +335,100 @@ class VortexTUI(App[None]):
     async def handle_input(self, text: str) -> None:
         text = text.strip()
         if not text:
+            if self.command_bar:
+                self.command_bar.clear_suggestions()
             return
         if text.startswith(":"):
-            await self._open_palette(text[1:])
+            resolved = self._resolve_colon_command(text)
+            if resolved is None:
+                await self._open_palette(text[1:])
+            else:
+                await self._execute_command(resolved)
             return
         command = parse_slash_command(text)
         if not command:
             self.state.add_log("info", text)
-            panel = self.query_one("#main-panel", MainPanel)
-            panel.append(Text(text))
+            panel = self._main_panel or self.query_one("#main-panel", MainPanel)
+
+            def append() -> None:
+                panel.append(Text(text), plain_text=text)
+
+            self._panel_update(append)
             self.state.last_plain_text = text
             await self._announce(f"Appended note: {text}")
             self._refresh_coalescer.request()
+            if self.command_bar:
+                self.command_bar.clear_suggestions()
             return
         await self._execute_command(command)
 
+    @profile("tui.execute_command")
     async def _execute_command(self, command: SlashCommand) -> None:
         if not self.actions:
             return
+        spinner = command.name in {"plan", "apply", "test", "simulate"}
+        if spinner:
+            self._start_spinner(command.name)
         try:
             result = await self.actions.handle(command)
         except Exception as exc:  # pragma: no cover - defensive guard
             logger.exception("command failed", extra={"command": command.raw})
             self.state.add_log("error", str(exc))
-            panel = self.query_one("#main-panel", MainPanel)
-            panel.append(Text(f"Error: {exc}", style="bold red"))
+            panel = self._main_panel or self.query_one("#main-panel", MainPanel)
+
+            def show_error() -> None:
+                panel.append(Text(f"Error: {exc}", style="bold red"))
+
+            self._panel_update(show_error)
             await self._announce(f"Command failed: {exc}", severity="error")
             self._refresh_coalescer.request()
             return
-        self._render_result(command, result)
+        finally:
+            if spinner:
+                await self._stop_spinner()
+        await self._render_result(command, result)
+        if self.command_bar:
+            self.command_bar.clear_suggestions()
         await self._handle_metadata(result.metadata)
         if command.name == "help":
             self.toggle_help()
         await self.refresh_status()
 
-    def _render_result(self, command: SlashCommand, result: CommandResult) -> None:
-        panel = self.query_one("#main-panel", MainPanel)
+    async def _render_result(self, command: SlashCommand, result: CommandResult) -> None:
+        panel = self._main_panel or self.query_one("#main-panel", MainPanel)
         self.state.add_log("info", result.message)
         summary = Text(f"{command.raw} → {result.message}", style="green")
-        if result.renderable is not None:
+
+        def show_renderable() -> None:
             panel.show(result.renderable, plain_text=result.plain_text)
             panel.append(summary)
-        else:
+
+        def append_only() -> None:
             panel.append(summary, plain_text=result.plain_text)
+
+        if result.renderable is not None:
+            self._panel_update(show_renderable)
+        else:
+            self._panel_update(append_only)
         if result.plain_text:
             self.state.last_plain_text = result.plain_text
         self.state.active_panel = "main"
         self._refresh_coalescer.request()
-        asyncio.create_task(self._announce(result.message))
-        if result.plain_text:
-            asyncio.create_task(self._announce(result.plain_text))
+        toast_meta = result.metadata.get("toast") if isinstance(result.metadata, dict) else None
+        severity = "information"
+        if isinstance(toast_meta, dict):
+            severity = toast_meta.get("severity", severity)
+        self.notify(result.message, severity=severity)
+        await self._announce(result.message)
+        if result.plain_text and self.announcer:
+            await self.announcer.announce_plain_text(result.plain_text)
+        elif result.plain_text:
+            await self._announce(result.plain_text)
 
     async def _handle_metadata(self, metadata: dict[str, Any]) -> None:
         if not metadata:
             return
+        persist_required = False
         if "theme" in metadata:
             theme_info = metadata["theme"]
             self.state.theme = theme_info.get("name", self.state.theme)
@@ -313,16 +436,40 @@ class VortexTUI(App[None]):
             if self.tui_settings:
                 self.tui_settings.theme = self.state.theme
                 self.tui_settings.high_contrast = self.state.high_contrast
+                if theme_info.get("custom_path"):
+                    self.tui_settings.custom_theme_path = Path(
+                        str(theme_info["custom_path"])
+                    ).expanduser()
+                persist_required = True
             self._apply_theme()
             await self._announce(f"Theme set to {self.state.theme}")
-        if "accessibility" in metadata and self.announcer:
+        if "accessibility" in metadata:
             prefs = metadata["accessibility"]
             if "enabled" in prefs:
-                self.announcer.set_enabled(prefs["enabled"])
                 self.state.accessibility_enabled = prefs["enabled"]
+                if self.announcer:
+                    self.announcer.set_enabled(prefs["enabled"])
+                if self.tui_settings:
+                    self.tui_settings.accessibility_enabled = prefs["enabled"]
+                    persist_required = True
             if "verbosity" in prefs:
-                self.announcer.set_verbosity(prefs["verbosity"])
                 self.state.accessibility_verbosity = prefs["verbosity"]
+                if self.announcer:
+                    self.announcer.set_verbosity(prefs["verbosity"])
+                if self.tui_settings:
+                    self.tui_settings.accessibility_verbosity = prefs["verbosity"]
+                    persist_required = True
+            if "narration" in prefs:
+                self.state.narration_enabled = prefs["narration"]
+                if self.tui_settings:
+                    self.tui_settings.narration_enabled = prefs["narration"]
+                    persist_required = True
+            if "contrast" in prefs:
+                self.state.high_contrast = prefs["contrast"]
+                if self.tui_settings:
+                    self.tui_settings.high_contrast = prefs["contrast"]
+                    persist_required = True
+                self._apply_theme()
         if metadata.get("open_settings"):
             await self._open_settings()
         if metadata.get("quit"):
@@ -331,10 +478,23 @@ class VortexTUI(App[None]):
             self._apply_theme()
         if "lyra_prompt" in metadata:
             await self._open_lyra(metadata["lyra_prompt"])
+        if persist_required and self.tui_settings:
+            await self.settings_manager.persist(self.tui_settings)
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         await self.handle_input(event.value)
         event.input.value = ""
+
+    async def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id != "command-input" or not self.command_bar:
+            return
+        query = event.value.strip()
+        cleaned = query.lstrip("/:").strip()
+        if not cleaned:
+            self.command_bar.clear_suggestions()
+            return
+        entries = search_entries(self.state, cleaned, runtime=self.runtime)
+        self.command_bar.update_suggestions(entries)
 
     async def _open_palette(self, query: str = "") -> None:
         entries = search_entries(self.state, query, runtime=self.runtime)
@@ -343,10 +503,30 @@ class VortexTUI(App[None]):
         table.add_column("Description")
         for entry in entries:
             table.add_row(entry.command, f"{entry.hint} ({entry.category})")
-        panel = self.query_one("#main-panel", MainPanel)
-        panel.show(table)
+        panel = self._main_panel or self.query_one("#main-panel", MainPanel)
+
+        def display() -> None:
+            panel.show(table)
+
+        self._panel_update(display)
         await self._announce("Palette opened")
         self._refresh_coalescer.request()
+
+    def _resolve_colon_command(self, text: str) -> Optional[SlashCommand]:
+        mapping = {
+            ":q": "/quit",
+            ":quit": "/quit",
+            ":help": "/help",
+            ":settings": "/settings",
+        }
+        if text in mapping:
+            return parse_slash_command(mapping[text])
+        if text.startswith(":palette"):
+            return None
+        if text.startswith(":theme"):
+            _, _, arg = text.partition(" ")
+            return parse_slash_command(f"/theme {arg.strip()}" if arg else "/theme")
+        return None
 
     async def _open_settings(self) -> None:
         screen = SettingsScreen(self.tui_settings or TUISettings())
@@ -360,13 +540,28 @@ class VortexTUI(App[None]):
         self._apply_theme()
         await self._announce("Settings updated")
 
+    async def handle_command_bar_suggestion_selected(
+        self, message: CommandBar.SuggestionSelected
+    ) -> None:
+        if not self.command_bar:
+            return
+        input_widget = self.command_bar.input
+        input_widget.value = message.command
+        input_widget.cursor_position = len(message.command)
+        input_widget.focus()
+        self.command_bar.clear_suggestions()
+
     async def _open_lyra(self, prompt: str) -> None:
         if not self.state.feature_flags.get("lyra_assistant", True):
             self.state.add_log("warning", "Lyra assistant disabled")
             return
         result = await self.lyra.invoke(prompt)
-        panel = self.query_one("#main-panel", MainPanel)
-        panel.show(result.renderable, plain_text=result.plain_text)
+        panel = self._main_panel or self.query_one("#main-panel", MainPanel)
+
+        def display() -> None:
+            panel.show(result.renderable, plain_text=result.plain_text)
+
+        self._panel_update(display)
         self.state.last_plain_text = result.plain_text
         await self._announce(result.message)
         await self._announce(result.plain_text)
@@ -383,7 +578,10 @@ class VortexTUI(App[None]):
     async def _focus_panel(self, panel_id: str) -> None:
         widget = self.query_one(f"#{panel_id}")
         widget.focus()
-        await self._announce(f"Focus moved to {panel_id}")
+        if self.announcer:
+            await self.announcer.announce_panel(panel_id.replace("-", " ").title())
+        else:
+            await self._announce(f"Focus moved to {panel_id}")
 
     async def action_palette_open(self) -> None:
         input_widget = self.query_one("#command-input", Input)
@@ -458,8 +656,12 @@ class VortexTUI(App[None]):
         table.add_column("Recent Commands")
         for command in self.state.search_history(""):
             table.add_row(command)
-        panel = self.query_one("#main-panel", MainPanel)
-        panel.show(table)
+        panel = self._main_panel or self.query_one("#main-panel", MainPanel)
+
+        def display() -> None:
+            panel.show(table)
+
+        self._panel_update(display)
         await self._announce("Displayed recent commands")
         self._refresh_coalescer.request()
 
@@ -530,6 +732,7 @@ class VortexTUI(App[None]):
 
     async def on_error(self, error: Exception) -> None:  # pragma: no cover - defensive
         self.state.add_log("error", str(error))
+        logger.exception("tui unhandled error", exc_info=error)
         await self._announce(f"Unhandled error: {error}", severity="error")
 
     async def _announce(self, message: str, *, severity: str = "info") -> None:

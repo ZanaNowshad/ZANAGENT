@@ -230,29 +230,72 @@ class TUIActionCenter:
             state = "on" if self._state.accessibility_enabled else "off"
             return CommandResult(message=f"Accessibility {state}")
         level = command.args[0].lower()
-        metadata: Dict[str, Any]
+        metadata: Dict[str, Any] = {"accessibility": {}}
         if level in {"on", "off"}:
             enabled = level == "on"
             self._state.accessibility_enabled = enabled
-            metadata = {"accessibility": {"enabled": enabled}}
-            return CommandResult(message=f"Accessibility {'enabled' if enabled else 'disabled'}", metadata=metadata)
+            metadata["accessibility"]["enabled"] = enabled
+            return CommandResult(
+                message=f"Accessibility {'enabled' if enabled else 'disabled'}",
+                metadata=metadata,
+            )
         if level in {"minimal", "verbose", "normal"}:
             self._state.accessibility_verbosity = level
-            metadata = {"accessibility": {"verbosity": level}}
-            return CommandResult(message=f"Accessibility verbosity set to {level}", metadata=metadata)
-        return CommandResult(message=f"Unknown accessibility option: {level}")
+            metadata["accessibility"]["verbosity"] = level
+            return CommandResult(
+                message=f"Accessibility verbosity set to {level}", metadata=metadata
+            )
+        if level == "narration" and len(command.args) > 1:
+            toggle = command.args[1].lower() in {"on", "true", "1"}
+            self._state.narration_enabled = toggle
+            metadata["accessibility"]["narration"] = toggle
+            return CommandResult(
+                message=f"Narration {'enabled' if toggle else 'disabled'}",
+                metadata=metadata,
+            )
+        if level == "contrast" and len(command.args) > 1:
+            toggle = command.args[1].lower() in {"on", "true", "1"}
+            self._state.high_contrast = toggle
+            metadata["accessibility"]["contrast"] = toggle
+            return CommandResult(
+                message=f"High contrast {'enabled' if toggle else 'disabled'}",
+                metadata=metadata,
+            )
+        if level == "verbosity" and len(command.args) > 1:
+            verbosity = command.args[1].lower()
+            if verbosity not in {"minimal", "normal", "verbose"}:
+                return CommandResult(message=f"Unknown verbosity level: {verbosity}")
+            self._state.accessibility_verbosity = verbosity
+            metadata["accessibility"]["verbosity"] = verbosity
+            return CommandResult(
+                message=f"Accessibility verbosity set to {verbosity}", metadata=metadata
+            )
+        return CommandResult(message=f"Unknown accessibility option: {' '.join(command.args)}")
 
     async def _cmd_theme(self, command: SlashCommand) -> CommandResult:
         if not command.args:
             return CommandResult(message=f"Active theme: {self._state.theme}")
         requested = command.args[0].lower()
+        metadata: Dict[str, Any] = {"theme": {}}
+        if requested == "custom":
+            if len(command.args) < 2:
+                return CommandResult(message="Usage: /theme custom <path>")
+            path = Path(command.args[1]).expanduser()
+            if not path.exists():
+                return CommandResult(message=f"Custom theme not found: {path}")
+            metadata["theme"].update({"name": "custom", "custom_path": str(path)})
+            self._state.theme = "custom"
+            self._state.high_contrast = False
+            return CommandResult(
+                message=f"Custom theme loaded from {path}", metadata=metadata
+            )
         high_contrast = requested == "high_contrast"
         theme = "dark" if high_contrast else requested
         if theme not in {"dark", "light"}:
             return CommandResult(message=f"Unknown theme {requested}")
         self._state.theme = theme
         self._state.high_contrast = high_contrast
-        metadata = {"theme": {"name": theme, "high_contrast": high_contrast}}
+        metadata["theme"].update({"name": theme, "high_contrast": high_contrast})
         return CommandResult(message=f"Theme switched to {requested}", metadata=metadata)
 
     async def _cmd_settings(self, command: SlashCommand) -> CommandResult:
@@ -280,7 +323,18 @@ class TUIActionCenter:
         columns.add_row("Terminal", os.environ.get("TERM", "unknown"))
         columns.add_row("ColsxRows", shutil.get_terminal_size((0, 0)).__repr__())
         columns.add_row("Git", shutil.which("git") or "missing")
-        return CommandResult(message="Diagnostics complete", renderable=columns)
+        plain = "\n".join(
+            f"{row[0]}: {row[1]}" for row in [
+                ("Platform", platform.platform()),
+                ("Python", platform.python_version()),
+                ("Terminal", os.environ.get("TERM", "unknown")),
+                ("ColsxRows", shutil.get_terminal_size((0, 0)).__repr__()),
+                ("Git", shutil.which("git") or "missing"),
+            ]
+        )
+        return CommandResult(
+            message="Diagnostics complete", renderable=columns, plain_text=plain
+        )
 
     def _locate_checkpoint(self, identifier: Optional[str]) -> Optional[CheckpointSnapshot]:
         if not self._state.checkpoints:

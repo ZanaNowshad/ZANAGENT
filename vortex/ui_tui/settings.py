@@ -368,7 +368,7 @@ class InitialSetupWizard(_BaseSettingsScreen):
             narration_enabled=narration,
             telemetry_opt_in=telemetry,
             write_guard=write_guard,
-            feature_flags=dict(DEFAULT_FLAGS),
+            feature_flags={**self.defaults.feature_flags},
         )
         self._set_result(settings)
         self.dismiss(settings)
@@ -384,58 +384,25 @@ class InitialSetupWizard(_BaseSettingsScreen):
 class SettingsScreen(_BaseSettingsScreen):
     """Editable settings surface accessible during a session."""
 
+    def __init__(self, defaults: TUISettings) -> None:
+        super().__init__(defaults)
+        self._active_tab = "general"
+
     def compose(self) -> ComposeResult:
         yield Container(
             Vertical(
                 Label("Session Settings", id="settings-title"),
-                Select(
-                    (
-                        ("Dark", "dark"),
-                        ("Light", "light"),
-                        ("High Contrast", "high_contrast"),
-                    ),
-                    value="high_contrast" if self.defaults.high_contrast else self.defaults.theme,
-                    id="settings-theme",
+                Horizontal(
+                    Button("General", id="tab-general", variant="primary"),
+                    Button("Accessibility", id="tab-accessibility"),
+                    Button("Features", id="tab-features"),
+                    id="settings-tabs",
                 ),
-                Checkbox(
-                    "Enable accessibility narration",
-                    value=self.defaults.accessibility_enabled,
-                    id="settings-accessibility",
-                ),
-                Checkbox(
-                    "Enable high contrast palette",
-                    value=self.defaults.high_contrast,
-                    id="settings-contrast",
-                ),
-                Checkbox(
-                    "Announce verbose updates",
-                    value=self.defaults.accessibility_verbosity == "verbose",
-                    id="settings-verbosity",
-                ),
-                Checkbox(
-                    "Activate Lyra assistant",
-                    value=self.defaults.feature_flags.get("lyra_assistant", True),
-                    id="settings-lyra",
-                ),
-                Checkbox(
-                    "Opt into telemetry",
-                    value=bool(self.defaults.telemetry_opt_in),
-                    id="settings-telemetry",
-                ),
-                Checkbox(
-                    "Enable write guard",
-                    value=self.defaults.write_guard if self.defaults.write_guard is not None else True,
-                    id="settings-write-guard",
-                ),
-                Input(
-                    value=self.defaults.model or "",
-                    placeholder="Preferred model identifier",
-                    id="settings-model",
-                ),
-                Input(
-                    value=str(self.defaults.custom_theme_path or ""),
-                    placeholder="Custom theme file (toml/yaml)",
-                    id="settings-custom-theme",
+                Container(
+                    self._general_page(),
+                    self._accessibility_page(),
+                    self._feature_page(),
+                    id="settings-pages",
                 ),
                 Horizontal(
                     Button("Cancel", id="settings-cancel"),
@@ -446,6 +413,129 @@ class SettingsScreen(_BaseSettingsScreen):
             )
         )
 
+    def on_mount(self) -> None:  # pragma: no cover - focus management
+        self._show_tab(self._active_tab)
+
+    def _general_page(self) -> Container:
+        return Container(
+            Select(
+                (
+                    ("Dark", "dark"),
+                    ("Light", "light"),
+                    ("High Contrast", "high_contrast"),
+                ),
+                value="high_contrast" if self.defaults.high_contrast else self.defaults.theme,
+                id="settings-theme",
+            ),
+            Checkbox(
+                "Enable high contrast palette",
+                value=self.defaults.high_contrast,
+                id="settings-contrast",
+            ),
+            Input(
+                value=self.defaults.model or "",
+                placeholder="Preferred model identifier",
+                id="settings-model",
+            ),
+            Input(
+                value=str(self.defaults.custom_theme_path or ""),
+                placeholder="Custom theme file (toml/yaml)",
+                id="settings-custom-theme",
+            ),
+            id="settings-general",
+            classes="settings-page",
+        )
+
+    def _accessibility_page(self) -> Container:
+        verbosity_options = (
+            ("Minimal narration", "minimal"),
+            ("Standard", "normal"),
+            ("Verbose", "verbose"),
+        )
+        return Container(
+            Checkbox(
+                "Enable accessibility narration",
+                value=self.defaults.accessibility_enabled,
+                id="settings-accessibility",
+            ),
+            Checkbox(
+                "Enable narration announcements",
+                value=self.defaults.narration_enabled,
+                id="settings-narration",
+            ),
+            Select(
+                verbosity_options,
+                value=self.defaults.accessibility_verbosity,
+                id="settings-verbosity",
+            ),
+            Checkbox(
+                "Screen reader friendly high contrast",
+                value=self.defaults.high_contrast,
+                id="settings-contrast-accessibility",
+            ),
+            id="settings-accessibility-page",
+            classes="settings-page hidden",
+        )
+
+    def _feature_page(self) -> Container:
+        return Container(
+            Checkbox(
+                "Activate Lyra assistant",
+                value=self.defaults.feature_flags.get("lyra_assistant", True),
+                id="settings-lyra",
+            ),
+            Checkbox(
+                "Enable experimental TUI features",
+                value=self.defaults.feature_flags.get("experimental_tui", False),
+                id="settings-experimental",
+            ),
+            Checkbox(
+                "Opt into telemetry",
+                value=bool(self.defaults.telemetry_opt_in),
+                id="settings-telemetry",
+            ),
+            Checkbox(
+                "Enable write guard",
+                value=self.defaults.write_guard if self.defaults.write_guard is not None else True,
+                id="settings-write-guard",
+            ),
+            id="settings-features",
+            classes="settings-page hidden",
+        )
+
+    @on(Button.Pressed, "#tab-general")
+    def _tab_general(self, event: Button.Pressed) -> None:
+        self._show_tab("general")
+
+    @on(Button.Pressed, "#tab-accessibility")
+    def _tab_accessibility(self, event: Button.Pressed) -> None:
+        self._show_tab("accessibility")
+
+    @on(Button.Pressed, "#tab-features")
+    def _tab_features(self, event: Button.Pressed) -> None:
+        self._show_tab("features")
+
+    def _show_tab(self, tab: str) -> None:
+        self._active_tab = tab
+        pages = {
+            "general": "#settings-general",
+            "accessibility": "#settings-accessibility-page",
+            "features": "#settings-features",
+        }
+        for name, selector in pages.items():
+            container = self.query_one(selector)
+            if name == tab:
+                container.remove_class("hidden")
+            else:
+                container.add_class("hidden")
+        # Update tab button styling for clarity
+        for button_id in ("#tab-general", "#tab-accessibility", "#tab-features"):
+            button = self.query_one(button_id, Button)
+            if button.id == f"tab-{tab}":
+                button.variant = "primary"
+            else:
+                button.variant = "default"
+
     @on(Button.Pressed, "#settings-cancel")
     def _cancel(self, _: Button.Pressed) -> None:
         self.action_cancel()
@@ -453,10 +543,16 @@ class SettingsScreen(_BaseSettingsScreen):
     @on(Button.Pressed, "#settings-save")
     def _save(self, _: Button.Pressed) -> None:
         theme_value = self.query_one("#settings-theme", Select).value or "dark"
-        high_contrast = bool(self.query_one("#settings-contrast", Checkbox).value)
+        high_contrast_general = bool(self.query_one("#settings-contrast", Checkbox).value)
+        high_contrast_access = bool(
+            self.query_one("#settings-contrast-accessibility", Checkbox).value
+        )
+        high_contrast = high_contrast_general or high_contrast_access
         accessibility = bool(self.query_one("#settings-accessibility", Checkbox).value)
-        verbose = bool(self.query_one("#settings-verbosity", Checkbox).value)
+        verbosity = self.query_one("#settings-verbosity", Select).value or "normal"
+        narration = bool(self.query_one("#settings-narration", Checkbox).value)
         lyra_enabled = bool(self.query_one("#settings-lyra", Checkbox).value)
+        experimental = bool(self.query_one("#settings-experimental", Checkbox).value)
         telemetry = bool(self.query_one("#settings-telemetry", Checkbox).value)
         write_guard = bool(self.query_one("#settings-write-guard", Checkbox).value)
         model = self.query_one("#settings-model", Input).value.strip() or self.defaults.model
@@ -472,13 +568,14 @@ class SettingsScreen(_BaseSettingsScreen):
             theme=theme,
             high_contrast=high_contrast,
             accessibility_enabled=accessibility,
-            accessibility_verbosity="verbose" if verbose else self.defaults.accessibility_verbosity,
-            narration_enabled=self.defaults.narration_enabled,
+            accessibility_verbosity=verbosity,
+            narration_enabled=narration,
             telemetry_opt_in=telemetry,
             write_guard=write_guard,
             feature_flags={
                 **self.defaults.feature_flags,
                 "lyra_assistant": lyra_enabled,
+                "experimental_tui": experimental,
             },
             custom_theme_path=custom_theme,
         )

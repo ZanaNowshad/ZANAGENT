@@ -1,4 +1,7 @@
-"""Lyra assistant integration for inline guidance."""
+"""Inline Lyra assistant surfaced inside the TUI."""
+
+"""Inline Lyra assistant surfaced inside the TUI."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -9,6 +12,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 
 from vortex.utils.logging import get_logger
+from vortex.utils.profiling import profile
 
 logger = get_logger(__name__)
 
@@ -23,12 +27,18 @@ class LyraResponse:
 
 
 class LyraAssistant:
-    """Lightweight assistant leveraged within the TUI."""
+    """Lightweight assistant leveraged within the TUI.
+
+    The assistant keeps a compact history to power contextual suggestions while
+    ensuring prompts remain cheap to run. Profiling decorators help spot
+    regressions when operators rely on Lyra for quick syntax hints.
+    """
 
     def __init__(self, runtime: Any) -> None:
         self._runtime = runtime
         self._history: List[str] = []
 
+    @profile("lyra.invoke")
     async def invoke(self, prompt: str) -> LyraResponse:
         """Invoke the backing model to obtain contextual help."""
 
@@ -39,7 +49,7 @@ class LyraAssistant:
                 raise RuntimeError("Model manager unavailable")
             payload = await model_manager.generate(
                 "You are Lyra, an inline assistant guiding a developer using a terminal UI. "
-                "Offer concise steps or syntax tips."
+                "Offer concise steps or syntax tips.",
                 f"\nUser query: {prompt}\nRespond with bullet points.",
             )
             text = payload.get("text", "Unable to provide guidance right now.")

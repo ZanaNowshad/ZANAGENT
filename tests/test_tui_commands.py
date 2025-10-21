@@ -144,3 +144,46 @@ async def test_tool_and_memory_commands(runtime: DummyRuntime, tmp_path: Path, m
     tool_result = await actions.handle(tool_cmd)
     assert "Tool echo" in tool_result.message
     assert runtime.plugins.calls
+
+
+@pytest.mark.asyncio
+async def test_accessibility_and_theme_commands(tmp_path: Path, runtime: DummyRuntime, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    monkeypatch.chdir(repo)
+
+    state = TUISessionState()
+    status = StatusAggregator(runtime)
+    actions = TUIActionCenter(runtime, state, status)
+
+    accessibility_cmd = parse_slash_command("/accessibility narration on")
+    assert accessibility_cmd is not None
+    accessibility_result = await actions.handle(accessibility_cmd)
+    assert accessibility_result.metadata["accessibility"]["narration"] is True
+
+    contrast_cmd = parse_slash_command("/accessibility contrast on")
+    contrast_result = await actions.handle(contrast_cmd)
+    assert contrast_result.metadata["accessibility"]["contrast"] is True
+
+    theme_file = tmp_path / "theme.yaml"
+    theme_file.write_text("palette:\n  screen:\n    background: '#000000'\n")
+    theme_cmd = parse_slash_command(f"/theme custom {theme_file}")
+    assert theme_cmd is not None
+    theme_result = await actions.handle(theme_cmd)
+    assert theme_result.metadata["theme"]["custom_path"] == str(theme_file)
+
+    quit_cmd = parse_slash_command("/quit")
+    assert quit_cmd is not None
+    quit_result = await actions.handle(quit_cmd)
+    assert quit_result.metadata["quit"] is True
+
+    doctor_cmd = parse_slash_command("/doctor")
+    assert doctor_cmd is not None
+    doctor_result = await actions.handle(doctor_cmd)
+    assert "Platform" in (doctor_result.plain_text or "")
+
+    help_cmd = parse_slash_command("/help")
+    assert help_cmd is not None
+    help_result = await actions.handle(help_cmd)
+    assert "Help" in help_result.message

@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
+## [1.0.2] - 2024-03-09
+### Added
+- feat: introduced command palette suggestions, colon command shortcuts, and rich progress spinners for long-running actions.
+- feat: expanded accessibility controls with narration, contrast toggles, and persistent Textual settings tabs.
+
+### Changed
+- ux: refactored TUI rendering with panel update coalescers, screen-reader announcements, and theme reload metadata plumbing.
+
+### Testing
+- test: broadened TUI coverage with accessibility progress checks, panel coalescer validation, and settings persistence tests.
+
+### Documentation
+- docs: refreshed TUI reference with new slash commands, palette behaviour, and performance guidance.
+
 ## [1.0.1] - 2024-03-08
 ### Added
 - feat: introduced Textual-based accessibility improvements including announcers, settings wizard, and Lyra assistant panel.
