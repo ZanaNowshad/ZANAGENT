@@ -10,12 +10,25 @@ reference documents the interaction model for operators and contributors.
 vortex tui                 # start a fresh session
 vortex tui --resume        # restore the previous session state
 vortex tui --theme light   # override theme
+vortex tui --theme high_contrast
 vortex tui --no-color      # 16-colour safe output
 vortex tui --screen-reader # announce panel changes
 ```
 
 State is persisted under `~/.agent/sessions/` using JSON so that transient runs
-survive terminal restarts.
+survive terminal restarts. The TUI honours the global configuration stored in
+`~/.vortex/config.toml` and writes theme/accessibility updates back to the file.
+
+## Initial Setup Wizard
+
+The first launch presents a multi-step wizard collecting:
+
+1. **Model** preference and narration verbosity.
+2. **Theme** selection (dark, light, or high contrast) plus narration toggle.
+3. **Safety & privacy** knobs (telemetry consent, write guard, accessibility).
+
+Answers persist in the operator config and are replayed on subsequent sessions.
+Invoke the wizard again at any time via `/settings` or `Ctrl+,`.
 
 ## Panels
 
@@ -24,18 +37,19 @@ survive terminal restarts.
 | Main         | Active transcript/diff/log output depending on the current mode|
 | Context      | Repository tree and relevant snippets                          |
 | Actions      | High-value buttons with hotkey hints                           |
-| Status       | Branch, checkpoints, budgets, model, and latest test status    |
+| Status       | Branch, checkpoints, budgets, model, CPU/memory, tests         |
 | Tools (T)    | Discoverable plugin/tool registry                              |
 | Help (?)     | Key bindings, slash commands, copyable examples                |
+| Telemetry    | Resource bar anchored at the bottom of the layout              |
 
 Use `Tab`/`Shift+Tab` to cycle focus across panels. Focus changes trigger a
 screen-reader announcement when enabled.
 
 ## Command Palette and Slash Commands
 
-Press `:` to open the inline palette. It lists frequently used commands and your
-recent history. Selecting an entry injects the corresponding slash command into
-the command bar.
+Press `:` to open the inline palette. It lists frequently used commands, your
+recent history, fuzzy matches for tools and file paths, and palette history.
+Selecting an entry injects the corresponding slash command into the command bar.
 
 Slash commands are parsed with shell semantics (quotes honoured). Supported
 commands include:
@@ -52,34 +66,65 @@ commands include:
 | `/mode <chat|fix|gen|review|run|plan|diff>` | Switch the main panel mode |
 | `/budget <minutes>` | Update the remaining budget in minutes |
 | `/auto <steps>` | Configure autonomous execution depth |
+| `/accessibility <on|off|minimal|verbose>` | Toggle narration level |
+| `/theme <dark|light|high_contrast>` | Switch theme and high-contrast mode |
+| `/settings` | Launch the settings surface |
+| `/lyra [prompt]` | Open the Lyra inline assistant for quick tips |
+| `/doctor` | Run diagnostics on terminal, fonts, and colours |
+| `/reload theme` | Reload the active theme from disk |
+| `/quit` | Confirm exit and persist session |
 | `/help` | Toggle the help overlay |
 
 Slash commands integrate with the runtime managers (planner, workflow engine,
 memory, plugin system, cost tracker, git integration) and log results in the
-main panel with timestamps for traceability.
+main panel with timestamps for traceability. Results include plain-text
+summaries so screen readers can announce diffs and log entries.
 
 ## Keyboard Shortcuts
 
-- `a` – Apply: capture checkpoint
-- `u` – Undo: revert checkpoint
-- `p` – Plan: refresh execution order
-- `s` – Simulate: run the workflow engine with the current context
-- `t` – Toggle the tools panel
-- `T` – Run the test suite (`/test`)
-- `/` – Focus the slash command bar
-- `:` – Open the command palette
-- `?` – Toggle help
-- `j`/`k` – Navigate list items
-- `g`/`G` – Jump to top/bottom
-- `h`/`l` – Navigate diff hunks
-- `Enter` – Activate focused list entry
+| Shortcut | Action |
+| -------- | ------ |
+| `a` | Apply: capture checkpoint |
+| `u` | Undo: revert checkpoint |
+| `p` | Plan: refresh execution order |
+| `s` | Simulate: run the workflow engine with the current context |
+| `t` | Toggle the tools panel |
+| `T` | Run the test suite (`/test`) |
+| `/` | Focus the slash command bar |
+| `:` | Open the command palette |
+| `?` | Toggle help |
+| `Ctrl+,` | Open settings |
+| `Ctrl+T` | Reload the active theme |
+| `Ctrl+R` | Show recent command history |
+| `Ctrl+Q` | Prompt to quit |
+| `j`/`k` | Navigate list items |
+| `g`/`G` | Jump to top/bottom |
+| `h`/`l` | Navigate diff hunks |
+| `Enter` | Activate focused list entry |
 
-## Accessibility
+## Performance & Accessibility
 
-Enable announcements with `--screen-reader` or at runtime by emitting an
-`AccessibilityToggle` message. Panel switches, palette openings, and diff
-navigation all trigger short notifications. Combine with `--no-color` for
-maximum compatibility with screen readers and high-contrast requirements.
+- Rendering is governed by a refresh coalescer targeting ~60 fps (tune via the
+  `VORTEX_TUI_FPS` environment variable). Heavy operations such as git status are
+  executed in background workers to keep the UI responsive.
+- The telemetry bar surfaces live CPU and memory usage using `psutil`. Disable
+  colour entirely with `--no-color` for legacy terminals.
+- Accessibility narration is available through `--screen-reader`, the
+  `/accessibility` command, or settings. Verbosity can be set to `minimal`,
+  `normal`, or `verbose`. Plain-text diffs/logs are produced for screen readers.
+
+## Lyra Assistant
+
+Toggle Lyra with `/lyra [prompt]` or pick it from the palette. The assistant
+streams inline Markdown guidance derived from the configured model manager.
+Enable or disable Lyra at runtime in the settings panel (feature flag
+`lyra_assistant`). Responses are added to the session log for later recall.
+
+## Diagnostics & Doctor
+
+Run `/doctor` to collect terminal compatibility information (platform, Python
+version, terminal dimensions, git availability). Use `/reload theme` after
+modifying custom theme files on disk.
 
 ## Session Artifacts
 
@@ -88,16 +133,9 @@ store git diff snapshots so `/undo` can restore file state. Logs are also
 written to the standard `vortex` JSON log stream, enabling tailing via
 `vortex.utils.logging.configure_logging()`.
 
-## Troubleshooting
-
-- Ensure `git` is installed; the diff/undo/checkpoint features shell out to it.
-- The command palette displays your history. Clear the session file to reset.
-- Textual supports mouse interaction—click panel headers to move focus if
-  desired.
-
 ## Extending the UI
 
-New panels can subscribe to the `AccessibilityToggle` message to honour screen
+New panels can subscribe to `AccessibilityToggle` messages to honour screen
 reader mode. Layout customisations live in `vortex/ui_tui/panels.py`; additional
 bindings belong in `vortex/ui_tui/hotkeys.py`. Keep slash command handlers in
 `vortex/ui_tui/actions.py` to preserve a single orchestration layer.

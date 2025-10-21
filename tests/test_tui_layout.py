@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip("textual")
+
 from vortex.ui_tui.layout import build_layout
-from vortex.ui_tui.panels import CommandBar, ContextPanel, MainPanel
+from vortex.ui_tui.panels import CommandBar, ContextPanel, MainPanel, TelemetryBar
 
 
 def test_build_layout_metadata(tmp_path: Path) -> None:
@@ -29,3 +33,9 @@ def test_context_panel_stores_path(tmp_path: Path) -> None:
     panel = ContextPanel(tmp_path)
     assert panel.id == "context-panel"
     assert panel.can_focus
+
+
+def test_telemetry_bar_defaults() -> None:
+    bar = TelemetryBar()
+    assert bar.cpu_usage == 0.0
+    assert "CPU" in bar.render().plain

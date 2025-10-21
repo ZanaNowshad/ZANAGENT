@@ -23,6 +23,10 @@ GLOBAL_HOTKEYS = [
     Binding(":", "palette_open", "Command Palette"),
     Binding("/", "slash_focus", "Slash Command"),
     Binding("?", "help_toggle", "Help"),
+    Binding("ctrl+comma", "settings_open", "Settings"),
+    Binding("ctrl+t", "theme_reload", "Reload Theme"),
+    Binding("ctrl+r", "history_search", "Search History"),
+    Binding("ctrl+q", "quit_app", "Quit"),
 ]
 
 

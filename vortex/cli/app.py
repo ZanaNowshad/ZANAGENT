@@ -179,7 +179,9 @@ def plan(file: Path = typer.Option(..., help="Path to JSON plan definition")) ->
 @app.command()
 def tui(
     resume: bool = typer.Option(False, "--resume/--no-resume", help="Resume the previous session"),
-    theme: str = typer.Option("auto", "--theme", "-t", help="Theme: auto, dark, or light"),
+    theme: str = typer.Option(
+        "auto", "--theme", "-t", help="Theme: auto, dark, light, or high_contrast"
+    ),
     no_color: bool = typer.Option(False, "--no-color", help="Disable colour output"),
     screen_reader: bool = typer.Option(
         False,
@@ -192,8 +194,8 @@ def tui(
     ctx = _require_runtime()
     from vortex.ui_tui import TUIOptions, launch_tui
 
-    if theme not in {"auto", "dark", "light"}:
-        raise typer.BadParameter("Theme must be auto, dark, or light")
+    if theme not in {"auto", "dark", "light", "high_contrast"}:
+        raise typer.BadParameter("Theme must be auto, dark, light, or high_contrast")
 
     options = TUIOptions(
         resume=resume,

@@ -1,4 +1,4 @@
-"""Widget collection composing the Vortex TUI."""
+"""Widgets composing the TUI layout."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,9 +8,21 @@ from rich.console import RenderableType
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import DirectoryTree, Footer, Header, Input, Label, ListItem, ListView, RichLog, Static
+from textual.reactive import reactive
+from textual.widgets import (
+    DirectoryTree,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    RichLog,
+    Static,
+)
 
 from .help import help_renderable
+from .settings import TUISettings
 
 
 class VortexPanel(Static):
@@ -29,14 +41,23 @@ class MainPanel(VortexPanel):
 
     def compose(self) -> ComposeResult:
         self._log = RichLog(highlight=True, markup=True)
+        self._last_plain_text: str = ""
         yield self._log
 
-    def show(self, renderable: RenderableType) -> None:
+    def show(self, renderable: RenderableType, *, plain_text: str | None = None) -> None:
         self._log.clear()
         self._log.write(renderable)
+        self._last_plain_text = plain_text or (
+            renderable.plain if hasattr(renderable, "plain") else str(renderable)
+        )
 
-    def append(self, renderable: RenderableType) -> None:
+    def append(self, renderable: RenderableType, *, plain_text: str | None = None) -> None:
         self._log.write(renderable)
+        if plain_text:
+            self._last_plain_text = plain_text
+
+    def last_plain_text(self) -> str:
+        return self._last_plain_text
 
 
 class ContextPanel(VortexPanel):
@@ -117,12 +138,28 @@ class CommandBar(Container):
         yield self.input
 
 
+class TelemetryBar(Static):
+    """Persistent status bar showing resource usage."""
+
+    cpu_usage: float = reactive(0.0)
+    memory_usage: float = reactive(0.0)
+
+    def render(self) -> RenderableType:  # pragma: no cover - trivial formatting
+        return Text(
+            f"CPU: {self.cpu_usage:4.1f}%  |  Memory: {self.memory_usage:4.1f}%",
+            style="dim",
+        )
+
+
 class RootLayout(Container):
     """Overall layout container orchestrating sub-panels."""
 
-    def __init__(self, root_path: Optional[Path] = None) -> None:
+    def __init__(self, root_path: Optional[Path] = None, *, settings: Optional[TUISettings] = None) -> None:
         super().__init__(id="root-layout")
         self._root_path = root_path or Path.cwd()
+        self._settings = settings
+        if settings and settings.high_contrast:
+            self.add_class("high-contrast")
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -135,6 +172,7 @@ class RootLayout(Container):
         yield ToolPanel(id="tool-panel", classes="hidden")
         yield HelpPanel(id="help-panel", classes="hidden")
         yield CommandBar()
+        yield TelemetryBar(id="telemetry-bar")
         yield Footer()
 
 
@@ -146,5 +184,6 @@ __all__ = [
     "MainPanel",
     "RootLayout",
     "StatusPanel",
+    "TelemetryBar",
     "ToolPanel",
 ]

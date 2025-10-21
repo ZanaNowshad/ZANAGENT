@@ -23,7 +23,8 @@ class SessionLogEntry:
     icon: str = ""
 
     def format(self) -> str:
-        return f"[{self.level}] {self.message}"
+        icon_prefix = f"{self.icon} " if self.icon else ""
+        return f"[{self.level}] {icon_prefix}{self.message}"
 
 
 @dataclass
@@ -35,6 +36,12 @@ class CheckpointSnapshot:
     diff: str
     files: List[str]
     created_at: float
+
+
+def _default_flags() -> Dict[str, bool]:
+    """Return default feature-flag configuration."""
+
+    return {"experimental_tui": False, "lyra_assistant": True}
 
 
 @dataclass
@@ -49,6 +56,15 @@ class TUISessionState:
     budget_minutes: Optional[int] = None
     palette_history: List[str] = field(default_factory=list)
     status_renderable: Optional[RenderableType] = None
+    theme: str = "dark"
+    high_contrast: bool = False
+    feature_flags: Dict[str, bool] = field(default_factory=_default_flags)
+    accessibility_enabled: bool = False
+    accessibility_verbosity: str = "normal"
+    narration_enabled: bool = False
+    screen_reader_mode: bool = False
+    last_plain_text: Optional[str] = None
+    history: List[str] = field(default_factory=list)
 
     def add_log(self, level: str, message: str, *, icon: str = "") -> SessionLogEntry:
         entry = SessionLogEntry(timestamp=time.time(), level=level, message=message, icon=icon)
@@ -70,6 +86,18 @@ class TUISessionState:
     def latest_checkpoint(self) -> Optional[CheckpointSnapshot]:
         return self.checkpoints[-1] if self.checkpoints else None
 
+    def record_history(self, command: str) -> None:
+        if command:
+            self.history.append(command)
+            if len(self.history) > 200:
+                self.history = self.history[-200:]
+
+    def search_history(self, query: str) -> List[str]:
+        if not query:
+            return list(reversed(self.history[-10:]))
+        query_lower = query.lower()
+        return [item for item in reversed(self.history) if query_lower in item.lower()][:10]
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "mode": self.mode,
@@ -79,6 +107,15 @@ class TUISessionState:
             "autopilot_steps": self.autopilot_steps,
             "budget_minutes": self.budget_minutes,
             "palette_history": self.palette_history[-50:],
+            "theme": self.theme,
+            "high_contrast": self.high_contrast,
+            "feature_flags": self.feature_flags,
+            "accessibility_enabled": self.accessibility_enabled,
+            "accessibility_verbosity": self.accessibility_verbosity,
+            "narration_enabled": self.narration_enabled,
+            "screen_reader_mode": self.screen_reader_mode,
+            "last_plain_text": self.last_plain_text,
+            "history": self.history[-200:],
         }
 
     @classmethod
@@ -89,10 +126,27 @@ class TUISessionState:
         state.autopilot_steps = payload.get("autopilot_steps", 0)
         state.budget_minutes = payload.get("budget_minutes")
         state.palette_history = list(payload.get("palette_history", []))
+        state.theme = payload.get("theme", state.theme)
+        state.high_contrast = payload.get("high_contrast", state.high_contrast)
+        state.feature_flags.update(payload.get("feature_flags", {}))
+        state.accessibility_enabled = payload.get("accessibility_enabled", state.accessibility_enabled)
+        state.accessibility_verbosity = payload.get(
+            "accessibility_verbosity", state.accessibility_verbosity
+        )
+        state.narration_enabled = payload.get("narration_enabled", state.narration_enabled)
+        state.screen_reader_mode = payload.get("screen_reader_mode", state.screen_reader_mode)
+        state.last_plain_text = payload.get("last_plain_text")
+        state.history = list(payload.get("history", []))
         for item in payload.get("logs", []):
-            state.logs.append(SessionLogEntry(**item))
+            try:
+                state.logs.append(SessionLogEntry(**item))
+            except TypeError:
+                continue
         for item in payload.get("checkpoints", []):
-            state.checkpoints.append(CheckpointSnapshot(**item))
+            try:
+                state.checkpoints.append(CheckpointSnapshot(**item))
+            except TypeError:
+                continue
         return state
 
 

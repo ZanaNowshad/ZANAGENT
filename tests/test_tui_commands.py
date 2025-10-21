@@ -6,6 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
+pytest.importorskip("textual")
+
 from vortex.ui_tui.actions import TUIActionCenter
 from vortex.ui_tui.command_parser import parse_slash_command
 from vortex.ui_tui.context import TUISessionState

@@ -3,12 +3,16 @@ from __future__ import annotations
 
 import asyncio
 import json
-from dataclasses import dataclass
+import os
+import platform
+import shutil
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Any, Dict, Iterable, Optional
 
 from rich.console import RenderableType
 from rich.syntax import Syntax
+from rich.table import Table
 from rich.text import Text
 
 from .command_parser import SlashCommand
@@ -23,6 +27,8 @@ class CommandResult:
     message: str
     renderable: Optional[RenderableType] = None
     checkpoint: Optional[CheckpointSnapshot] = None
+    plain_text: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class TUIActionCenter:
@@ -68,6 +74,7 @@ class TUIActionCenter:
             return CommandResult(message=f"Unknown command: {name}")
         result = await handler(command)
         self._state.palette_history.append(command.raw.strip())
+        self._state.record_history(command.raw.strip())
         return result
 
     async def _cmd_plan(self, command: SlashCommand) -> CommandResult:
@@ -77,7 +84,7 @@ class TUIActionCenter:
         order = planner.plan()
         table = Text("Execution order:\n" + "\n".join(f"• {item}" for item in order))
         self._state.mode = "plan"
-        return CommandResult(message="Plan generated", renderable=table)
+        return CommandResult(message="Plan generated", renderable=table, plain_text=table.plain)
 
     async def _cmd_apply(self, command: SlashCommand) -> CommandResult:
         diff_text = await self._cmd_diff(command, capture_only=True)
@@ -90,6 +97,7 @@ class TUIActionCenter:
             message=f"Checkpoint {checkpoint.identifier} captured",
             renderable=Syntax(diff_text, "diff", theme=self._syntax_theme),
             checkpoint=checkpoint,
+            plain_text=diff_text,
         )
 
     async def _cmd_undo(self, command: SlashCommand) -> CommandResult:
@@ -110,7 +118,6 @@ class TUIActionCenter:
             )
             await process.communicate()
         except Exception:
-            # Fallback to removing checkpoint only when git fails.
             pass
         self._state.checkpoints = [c for c in self._state.checkpoints if c.identifier != checkpoint.identifier]
         return CommandResult(message=f"Checkpoint {checkpoint.identifier} reverted")
@@ -125,7 +132,7 @@ class TUIActionCenter:
             return diff
         self._state.mode = "diff"
         renderable = Syntax(diff or "No changes", "diff", theme=self._syntax_theme)
-        return CommandResult(message="Workspace diff", renderable=renderable)
+        return CommandResult(message="Workspace diff", renderable=renderable, plain_text=diff)
 
     async def _cmd_test(self, command: SlashCommand) -> CommandResult:
         test_framework = getattr(self._runtime, "test_framework", None)
@@ -139,7 +146,7 @@ class TUIActionCenter:
         output = "\n".join(result_lines)
         self._status.last_tests_status = "pass" if "exit_code=0" in output else "fail"
         renderable = Syntax(output, "text", theme=self._syntax_theme)
-        return CommandResult(message="Tests executed", renderable=renderable)
+        return CommandResult(message="Tests executed", renderable=renderable, plain_text=output)
 
     async def _cmd_ctx(self, command: SlashCommand) -> CommandResult:
         if not command.args:
@@ -173,7 +180,7 @@ class TUIActionCenter:
             return CommandResult(message="Plugin system unavailable")
         result = await plugins.execute(name, **data)
         text = Text(f"Tool {name} result:\n{result}")
-        return CommandResult(message=f"Tool {name} executed", renderable=text)
+        return CommandResult(message=f"Tool {name} executed", renderable=text, plain_text=text.plain)
 
     async def _cmd_mode(self, command: SlashCommand) -> CommandResult:
         if not command.args:
@@ -216,7 +223,64 @@ class TUIActionCenter:
         payload = {"mode": self._state.mode}
         result = await workflow.execute(payload)
         text = Text.from_markup("\n".join(f"{k}: {v}" for k, v in result.items()))
-        return CommandResult(message="Simulation complete", renderable=text)
+        return CommandResult(message="Simulation complete", renderable=text, plain_text=text.plain)
+
+    async def _cmd_accessibility(self, command: SlashCommand) -> CommandResult:
+        if not command.args:
+            state = "on" if self._state.accessibility_enabled else "off"
+            return CommandResult(message=f"Accessibility {state}")
+        level = command.args[0].lower()
+        metadata: Dict[str, Any]
+        if level in {"on", "off"}:
+            enabled = level == "on"
+            self._state.accessibility_enabled = enabled
+            metadata = {"accessibility": {"enabled": enabled}}
+            return CommandResult(message=f"Accessibility {'enabled' if enabled else 'disabled'}", metadata=metadata)
+        if level in {"minimal", "verbose", "normal"}:
+            self._state.accessibility_verbosity = level
+            metadata = {"accessibility": {"verbosity": level}}
+            return CommandResult(message=f"Accessibility verbosity set to {level}", metadata=metadata)
+        return CommandResult(message=f"Unknown accessibility option: {level}")
+
+    async def _cmd_theme(self, command: SlashCommand) -> CommandResult:
+        if not command.args:
+            return CommandResult(message=f"Active theme: {self._state.theme}")
+        requested = command.args[0].lower()
+        high_contrast = requested == "high_contrast"
+        theme = "dark" if high_contrast else requested
+        if theme not in {"dark", "light"}:
+            return CommandResult(message=f"Unknown theme {requested}")
+        self._state.theme = theme
+        self._state.high_contrast = high_contrast
+        metadata = {"theme": {"name": theme, "high_contrast": high_contrast}}
+        return CommandResult(message=f"Theme switched to {requested}", metadata=metadata)
+
+    async def _cmd_settings(self, command: SlashCommand) -> CommandResult:
+        return CommandResult(message="Opening settings", metadata={"open_settings": True})
+
+    async def _cmd_quit(self, command: SlashCommand) -> CommandResult:
+        return CommandResult(message="Quit requested", metadata={"quit": True})
+
+    async def _cmd_reload(self, command: SlashCommand) -> CommandResult:
+        if command.args and command.args[0] == "theme":
+            return CommandResult(message="Reloading theme", metadata={"reload_theme": True})
+        return CommandResult(message="Reload requires a target e.g. /reload theme")
+
+    async def _cmd_lyra(self, command: SlashCommand) -> CommandResult:
+        prompt = " ".join(command.args)
+        metadata = {"lyra_prompt": prompt}
+        return CommandResult(message="Lyra prompt submitted", metadata=metadata)
+
+    async def _cmd_doctor(self, command: SlashCommand) -> CommandResult:
+        columns = Table.grid(expand=True)
+        columns.add_column(justify="left")
+        columns.add_column(justify="left")
+        columns.add_row("Platform", platform.platform())
+        columns.add_row("Python", platform.python_version())
+        columns.add_row("Terminal", os.environ.get("TERM", "unknown"))
+        columns.add_row("ColsxRows", shutil.get_terminal_size((0, 0)).__repr__())
+        columns.add_row("Git", shutil.which("git") or "missing")
+        return CommandResult(message="Diagnostics complete", renderable=columns)
 
     def _locate_checkpoint(self, identifier: Optional[str]) -> Optional[CheckpointSnapshot]:
         if not self._state.checkpoints:

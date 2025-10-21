@@ -2,18 +2,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 from .panels import RootLayout
+from .settings import TUISettings
 
 
-def build_layout(root_path: Path | None = None) -> RootLayout:
-    """Return the root layout widget.
+def build_layout(root_path: Path | None = None, settings: Optional[TUISettings] = None) -> RootLayout:
+    """Return the root layout widget configured for the current session."""
 
-    The helper keeps ``App.compose`` tidy and allows tests to instantiate the
-    layout independently of the running application.
-    """
-
-    return RootLayout(root_path)
+    return RootLayout(root_path, settings=settings)
 
 
 __all__ = ["build_layout"]

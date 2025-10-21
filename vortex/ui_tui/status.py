@@ -1,4 +1,4 @@
-"""Status aggregation for the TUI."""
+"""Runtime status aggregation for the TUI."""
 from __future__ import annotations
 
 import asyncio
@@ -6,6 +6,13 @@ from dataclasses import dataclass
 from typing import Optional
 
 from rich.table import Table
+
+from vortex.utils.profiling import profile
+
+try:  # pragma: no cover - optional dependency in CI
+    import psutil
+except Exception:  # pragma: no cover
+    psutil = None  # type: ignore[assignment]
 
 
 @dataclass
@@ -17,6 +24,8 @@ class StatusSnapshot:
     mode: str
     tests_status: str
     budget_minutes: Optional[int]
+    cpu_percent: float
+    memory_percent: float
 
 
 class StatusAggregator:
@@ -41,33 +50,48 @@ class StatusAggregator:
             return stderr.decode().strip()
         return stdout.decode().strip()
 
-    async def gather(self, *, mode: str, budget_minutes: Optional[int], checkpoint: Optional[str]) -> StatusSnapshot:
+    async def gather(
+        self, *, mode: str, budget_minutes: Optional[int], checkpoint: Optional[str]
+    ) -> StatusSnapshot:
+        with profile("status_gather"):
+            branch = await self._safe_git("rev-parse", "--abbrev-ref", "HEAD")
+            pending = await self._count_pending()
+            total_cost = await self._total_cost()
+            cpu_usage, memory_usage = _system_usage()
+            snapshot = StatusSnapshot(
+                branch=branch or "-",
+                pending_changes=pending,
+                last_checkpoint=checkpoint,
+                total_cost=round(total_cost, 2),
+                mode=mode,
+                tests_status=self.last_tests_status,
+                budget_minutes=budget_minutes,
+                cpu_percent=cpu_usage,
+                memory_percent=memory_usage,
+            )
+            return snapshot
+
+    async def _safe_git(self, *args: str) -> str:
         try:
-            branch = await self._run_git("rev-parse", "--abbrev-ref", "HEAD")
-        except Exception:  # pragma: no cover - git optional in CI
-            branch = "-"
+            return await self._run_git(*args)
+        except Exception:
+            return "-"
+
+    async def _count_pending(self) -> int:
         try:
             status_raw = await self._run_git("status", "--short")
-            pending = len([line for line in status_raw.splitlines() if line.strip()])
+            return len([line for line in status_raw.splitlines() if line.strip()])
         except Exception:
-            pending = 0
+            return 0
+
+    async def _total_cost(self) -> float:
         cost_tracker = getattr(self._runtime, "cost_tracker", None)
-        total_cost = 0.0
-        if cost_tracker is not None:
-            try:
-                total_cost = float(await cost_tracker.total_cost())
-            except Exception:
-                total_cost = 0.0
-        snapshot = StatusSnapshot(
-            branch=branch or "-",
-            pending_changes=pending,
-            last_checkpoint=checkpoint,
-            total_cost=round(total_cost, 2),
-            mode=mode,
-            tests_status=self.last_tests_status,
-            budget_minutes=budget_minutes,
-        )
-        return snapshot
+        if cost_tracker is None:
+            return 0.0
+        try:
+            return float(await cost_tracker.total_cost())
+        except Exception:
+            return 0.0
 
     @staticmethod
     def render(snapshot: StatusSnapshot) -> Table:
@@ -81,7 +105,20 @@ class StatusAggregator:
         table.add_row("Tests", snapshot.tests_status)
         table.add_row("Budget", f"{snapshot.budget_minutes}m" if snapshot.budget_minutes else "—")
         table.add_row("Cost", f"${snapshot.total_cost:.2f}")
+        table.add_row("CPU", f"{snapshot.cpu_percent:4.1f}%")
+        table.add_row("Memory", f"{snapshot.memory_percent:4.1f}%")
         return table
+
+
+def _system_usage() -> tuple[float, float]:
+    if psutil is None:  # pragma: no cover - dependency optional
+        return 0.0, 0.0
+    try:
+        cpu = psutil.cpu_percent(interval=0.0)
+        memory = psutil.virtual_memory().percent
+        return cpu, memory
+    except Exception:  # pragma: no cover - guard for unsupported environments
+        return 0.0, 0.0
 
 
 __all__ = ["StatusAggregator", "StatusSnapshot"]
