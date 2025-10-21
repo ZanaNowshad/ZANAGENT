@@ -1,0 +1,12 @@
+typer>=0.9
+rich>=13.5
+textual>=0.40
+pydantic>=2.5
+pyyaml>=6.0
+sqlalchemy>=2.0
+httpx>=0.24
+aiosqlite>=0.18
+python-dotenv>=1.0
+cryptography>=41.0
+uvloop>=0.17; platform_system != "Windows"
+orjson>=3.9
