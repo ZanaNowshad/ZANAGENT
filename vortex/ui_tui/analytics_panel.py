@@ -12,7 +12,6 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-
 SPARK_BLOCKS = "▁▂▃▄▅▆▇█"
 
 
@@ -90,7 +89,9 @@ def analytics_event_table(events: Iterable[Dict[str, float]]) -> Table:
     return table
 
 
-def analytics_dashboard(summary: Dict[str, Any], insights: List[str]) -> AnalyticsDashboardRenderable:
+def analytics_dashboard(
+    summary: Dict[str, Any], insights: List[str]
+) -> AnalyticsDashboardRenderable:
     kpi = analytics_kpi_table(summary.get("kpis", {}))
     events = analytics_event_table(summary.get("events", []))
     insight_block = Text("\n".join(insights) or "No insights yet.", style="italic")

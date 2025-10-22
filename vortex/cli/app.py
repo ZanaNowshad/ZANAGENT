@@ -1,4 +1,5 @@
 """Typer-based CLI wiring."""
+
 from __future__ import annotations
 
 import asyncio
@@ -151,6 +152,7 @@ def plan(file: Path = typer.Option(..., help="Path to JSON plan definition")) ->
     ctx = _require_runtime()
     tasks_data = json.loads(file.read_text())
     for item in tasks_data:
+
         async def _action(message: str = item.get("message", "task complete")) -> None:
             ctx.ui.info(message)
             await asyncio.sleep(0)
@@ -207,7 +209,9 @@ def tui(
 
 
 @app.command()
-def analyze(file: Path = typer.Option(..., help="JSON file mapping column to list of numbers")) -> None:
+def analyze(
+    file: Path = typer.Option(..., help="JSON file mapping column to list of numbers")
+) -> None:
     ctx = _require_runtime()
     data = json.loads(file.read_text())
     summaries = ctx.data_analyst.summarise(data)
@@ -340,7 +344,11 @@ def workflow_run(file: Path) -> None:
     for spec in steps:
         step_name = spec["name"]
 
-        async def _action(payload: Dict[str, Any], message: str = spec.get("message", "done"), name: str = step_name) -> Dict[str, Any]:
+        async def _action(
+            payload: Dict[str, Any],
+            message: str = spec.get("message", "done"),
+            name: str = step_name,
+        ) -> Dict[str, Any]:
             await asyncio.sleep(0)
             ctx.ui.info(message)
             return {name: message}

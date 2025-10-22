@@ -1,4 +1,5 @@
 """Advanced code intelligence helpers."""
+
 from __future__ import annotations
 
 import ast
@@ -36,7 +37,9 @@ class AdvancedCodeIntelligence:
             if isinstance(node, ast.FunctionDef):
                 complexity = 1
                 for child in ast.walk(node):
-                    if isinstance(child, (ast.If, ast.For, ast.While, ast.With, ast.Try, ast.BoolOp)):
+                    if isinstance(
+                        child, (ast.If, ast.For, ast.While, ast.With, ast.Try, ast.BoolOp)
+                    ):
                         complexity += 1
                 insight = FunctionInsight(
                     name=node.name,
@@ -59,7 +62,9 @@ class AdvancedCodeIntelligence:
         result = await self._model_manager.generate(prompt)
         return result.get("text", "")
 
-    def list_hotspots(self, insights: Iterable[FunctionInsight], *, threshold: int = 8) -> List[FunctionInsight]:
+    def list_hotspots(
+        self, insights: Iterable[FunctionInsight], *, threshold: int = 8
+    ) -> List[FunctionInsight]:
         """Identify functions exceeding the complexity threshold."""
 
         return [insight for insight in insights if insight.cyclomatic_complexity >= threshold]

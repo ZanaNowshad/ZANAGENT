@@ -1,4 +1,5 @@
 """Textual application powering the Vortex terminal experience."""
+
 from __future__ import annotations
 
 import asyncio
@@ -16,18 +17,17 @@ from textual.containers import Container, Horizontal
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, ListView
 
+from vortex.performance.analytics import SessionAnalyticsStore
 from vortex.utils.logging import get_logger
 from vortex.utils.profiling import profile
 
-from vortex.performance.analytics import SessionAnalyticsStore
-
-from .actions import CommandResult, TUIActionCenter
 from .accessibility import (
     AccessibilityAnnouncer,
     AccessibilityPreferences,
     AccessibilityPreferencesChanged,
     AccessibilityToggle,
 )
+from .actions import CommandResult, TUIActionCenter
 from .analytics_panel import analytics_dashboard, analytics_trend_panel
 from .command_parser import SlashCommand, parse_slash_command
 from .context import CollaboratorState, TUIOptions, TUIRuntimeBridge, TUISessionState
@@ -44,8 +44,8 @@ from .panels import (
     TelemetryBar,
     ToolPanel,
 )
-from .settings import InitialSetupWizard, SettingsScreen, TUISettings, TUISettingsManager
 from .session_manager import SessionEvent, SessionManager
+from .settings import InitialSetupWizard, SettingsScreen, TUISettings, TUISettingsManager
 from .status import StatusAggregator, StatusSnapshot
 from .themes import ThemeError, theme_css
 
@@ -250,7 +250,9 @@ class VortexTUI(App[None]):
         else:
             self.state.theme = settings.theme
             self.state.high_contrast = settings.high_contrast
-        self.state.accessibility_enabled = self.options.screen_reader or settings.accessibility_enabled
+        self.state.accessibility_enabled = (
+            self.options.screen_reader or settings.accessibility_enabled
+        )
         self.state.accessibility_verbosity = settings.accessibility_verbosity
         self.state.narration_enabled = settings.narration_enabled
         self.state.feature_flags.update(settings.feature_flags)
@@ -278,7 +280,9 @@ class VortexTUI(App[None]):
             details = await self.session_manager.session_details(self.state.session_id)
             self._apply_session_details(details)
         else:
-            metadata = await self.session_manager.create_session("Vortex Session", os.getenv("USER", "operator"))
+            metadata = await self.session_manager.create_session(
+                "Vortex Session", os.getenv("USER", "operator")
+            )
             details = await self.session_manager.session_details(metadata.session_id)
             self._apply_session_details(details)
             self.state.session_role = "owner"
@@ -546,10 +550,10 @@ class VortexTUI(App[None]):
             panel = self._main_panel or self.query_one("#main-panel", MainPanel)
 
             def show_error() -> None:
-                panel.append(Text(f"Error: {exc}", style="bold red"))
+                panel.append(Text("Error occurred", style="bold red"))
 
             self._panel_update(show_error)
-            await self._announce(f"Command failed: {exc}", severity="error")
+            await self._announce("Command failed", severity="error")
             self._refresh_coalescer.request()
             return
         finally:
@@ -853,7 +857,9 @@ class VortexTUI(App[None]):
         await self._execute_command(SlashCommand(raw="/plan", name="plan", args=[], options={}))
 
     async def action_action_simulate(self) -> None:
-        await self._execute_command(SlashCommand(raw="/simulate", name="simulate", args=[], options={}))
+        await self._execute_command(
+            SlashCommand(raw="/simulate", name="simulate", args=[], options={})
+        )
 
     async def action_action_test(self) -> None:
         await self._execute_command(SlashCommand(raw="/test", name="test", args=[], options={}))

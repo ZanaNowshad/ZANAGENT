@@ -28,7 +28,7 @@ class SuccessProvider:
 def test_failover(monkeypatch):
     async def _run():
         from vortex.core import model
-        
+
         monkeypatch.setitem(model.PROVIDER_REGISTRY, "failing", FailingProvider)
         monkeypatch.setitem(model.PROVIDER_REGISTRY, "success", SuccessProvider)
         manager = UnifiedModelManager(
@@ -39,5 +39,5 @@ def test_failover(monkeypatch):
         )
         result = await manager.generate("hi")
         assert result["text"] == "HI"
-        
+
     asyncio.run(_run())

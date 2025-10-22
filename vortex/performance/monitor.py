@@ -1,4 +1,5 @@
 """Runtime performance monitoring."""
+
 from __future__ import annotations
 
 import asyncio

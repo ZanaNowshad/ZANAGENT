@@ -1,4 +1,5 @@
 """Runtime status aggregation for the TUI."""
+
 from __future__ import annotations
 
 import asyncio
@@ -120,7 +121,11 @@ class StatusAggregator:
         if snapshot.collaborators:
             table.add_row(
                 "Collaborators",
-                ", ".join(snapshot.collaborators) if len(snapshot.collaborators) < 4 else f"{len(snapshot.collaborators)} online",
+                (
+                    ", ".join(snapshot.collaborators)
+                    if len(snapshot.collaborators) < 4
+                    else f"{len(snapshot.collaborators)} online"
+                ),
             )
         if snapshot.lock_holder:
             table.add_row("Lock", snapshot.lock_holder)

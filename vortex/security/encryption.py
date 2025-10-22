@@ -1,4 +1,5 @@
 """Credential encryption helpers."""
+
 from __future__ import annotations
 
 import base64
@@ -60,6 +61,7 @@ class CredentialStore:
         if self._fernet:
             return self._fernet.decrypt(data).decode("utf-8")
         return base64.urlsafe_b64decode(data).decode("utf-8")
+
 
 class DataEncryptor:
     """Encrypt arbitrary values for database persistence."""
@@ -148,7 +150,11 @@ class SessionEncryptor:
         session_id = payload["session"]
         key = payload["key"].encode("utf-8")
         self._cache[session_id] = base64.urlsafe_b64decode(key)
-        return session_id, payload.get("role", "collaborator"), bool(payload.get("read_only", False))
+        return (
+            session_id,
+            payload.get("role", "collaborator"),
+            bool(payload.get("read_only", False)),
+        )
 
     def _session_cipher(self, session_id: str):
         key = self._cache.get(session_id)

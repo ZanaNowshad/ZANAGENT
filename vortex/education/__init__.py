@@ -1,4 +1,5 @@
 """Educational utilities."""
+
 from __future__ import annotations
 
 from vortex.education.code_explainer import CodeExplainer

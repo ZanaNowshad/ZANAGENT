@@ -7,9 +7,11 @@ from vortex.experimental import MultiAgentCoordinator, Predictor, SelfImprovemen
 
 @pytest.fixture()
 def model_manager() -> UnifiedModelManager:
-    return UnifiedModelManager([
-        {"name": "echo", "type": "echo"},
-    ])
+    return UnifiedModelManager(
+        [
+            {"name": "echo", "type": "echo"},
+        ]
+    )
 
 
 @pytest.mark.asyncio
@@ -22,6 +24,7 @@ async def test_multiagent_broadcast(model_manager) -> None:
     coordinator.register("alpha", agent)
     result = await coordinator.broadcast("ping")
     assert result["alpha"] == "PING"
+
 
 @pytest.mark.asyncio
 async def test_self_improvement_and_predictor() -> None:

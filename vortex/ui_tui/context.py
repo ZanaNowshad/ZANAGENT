@@ -1,4 +1,5 @@
 """Shared state management for the Textual user interface."""
+
 from __future__ import annotations
 
 import json
@@ -162,7 +163,9 @@ class TUISessionState:
         state.theme = payload.get("theme", state.theme)
         state.high_contrast = payload.get("high_contrast", state.high_contrast)
         state.feature_flags.update(payload.get("feature_flags", {}))
-        state.accessibility_enabled = payload.get("accessibility_enabled", state.accessibility_enabled)
+        state.accessibility_enabled = payload.get(
+            "accessibility_enabled", state.accessibility_enabled
+        )
         state.accessibility_verbosity = payload.get(
             "accessibility_verbosity", state.accessibility_verbosity
         )

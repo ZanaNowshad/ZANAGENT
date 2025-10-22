@@ -1,4 +1,5 @@
 """Restricted execution sandbox."""
+
 from __future__ import annotations
 
 import asyncio
@@ -18,7 +19,9 @@ logger = get_logger(__name__)
 @dataclass
 class SandboxPolicy:
     allowed_modules: Set[str] = field(default_factory=lambda: {"math", "json"})
-    forbidden_builtins: Set[str] = field(default_factory=lambda: {"open", "exec", "eval", "compile"})
+    forbidden_builtins: Set[str] = field(
+        default_factory=lambda: {"open", "exec", "eval", "compile"}
+    )
 
 
 class Sandbox:
@@ -28,10 +31,12 @@ class Sandbox:
         self.policy = policy or SandboxPolicy()
 
     def clone(self) -> "Sandbox":
-        return Sandbox(policy=SandboxPolicy(
-            allowed_modules=set(self.policy.allowed_modules),
-            forbidden_builtins=set(self.policy.forbidden_builtins),
-        ))
+        return Sandbox(
+            policy=SandboxPolicy(
+                allowed_modules=set(self.policy.allowed_modules),
+                forbidden_builtins=set(self.policy.forbidden_builtins),
+            )
+        )
 
     async def run(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute ``func`` in a constrained environment."""

@@ -1,4 +1,5 @@
 """Help panel renderables."""
+
 from __future__ import annotations
 
 from rich.console import Group

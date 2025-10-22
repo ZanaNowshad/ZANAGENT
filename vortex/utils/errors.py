@@ -1,4 +1,5 @@
 """Custom exceptions used across the Vortex framework."""
+
 from __future__ import annotations
 
 

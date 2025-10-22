@@ -1,4 +1,5 @@
 """Cloud provider integrations."""
+
 from __future__ import annotations
 
 import asyncio
@@ -34,13 +35,17 @@ class CloudIntegration:
         self._cache = AsyncTTLCache(ttl=ttl)
         self._lock = asyncio.Lock()
 
-    async def add_account(self, name: str, base_url: str, credential: str, *, region: Optional[str] = None) -> None:
+    async def add_account(
+        self, name: str, base_url: str, credential: str, *, region: Optional[str] = None
+    ) -> None:
         """Register a new cloud account and persist its credential securely."""
 
         async with self._lock:
             secret_name = f"cloud:{name}"
             await self._security.store_secret(secret_name, credential)
-            self._accounts[name] = CloudAccount(name=name, base_url=base_url, credential_key=secret_name, region=region)
+            self._accounts[name] = CloudAccount(
+                name=name, base_url=base_url, credential_key=secret_name, region=region
+            )
 
     async def list_accounts(self) -> list[str]:
         async with self._lock:
@@ -69,12 +74,20 @@ class CloudIntegration:
             token = await self._security.retrieve_secret(account.credential_key)
             headers = {"Authorization": f"Bearer {token}"}
             async with await self._client(account) as client:
-                response = await client.request(method, path, params=params, json=payload, headers=headers)
+                response = await client.request(
+                    method, path, params=params, json=payload, headers=headers
+                )
                 response.raise_for_status()
                 return response.json()
 
         if not cache:
             return await _perform()
 
-        cache_key = (account_name, method, path, frozenset(params.items()) if params else None, frozenset(payload.items()) if payload else None)
+        cache_key = (
+            account_name,
+            method,
+            path,
+            frozenset(params.items()) if params else None,
+            frozenset(payload.items()) if payload else None,
+        )
         return await self._cache.get_or_set(cache_key, _perform)

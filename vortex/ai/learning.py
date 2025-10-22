@@ -1,4 +1,5 @@
 """Continuous learning subsystem."""
+
 from __future__ import annotations
 
 import asyncio
@@ -39,7 +40,11 @@ class ContinuousLearningSystem:
     async def trending_categories(self) -> List[str]:
         async with self._lock:
             ranked = sorted(
-                ((category, sum(scores) / len(scores)) for category, scores in self._feedback.items() if scores),
+                (
+                    (category, sum(scores) / len(scores))
+                    for category, scores in self._feedback.items()
+                    if scores
+                ),
                 key=lambda item: item[1],
                 reverse=True,
             )

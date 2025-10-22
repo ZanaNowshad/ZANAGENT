@@ -7,9 +7,11 @@ from vortex.core.model import UnifiedModelManager
 
 @pytest.fixture()
 def model_manager() -> UnifiedModelManager:
-    return UnifiedModelManager([
-        {"name": "echo", "type": "echo", "cost_per_1k_tokens": 0.01},
-    ])
+    return UnifiedModelManager(
+        [
+            {"name": "echo", "type": "echo", "cost_per_1k_tokens": 0.01},
+        ]
+    )
 
 
 @pytest.fixture()

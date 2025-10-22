@@ -81,7 +81,15 @@ def test_sessions_and_analytics_panels() -> None:
     sessions = SessionsPanel()
     list(sessions.compose())
     sessions.update_sessions(
-        {"alice@host": {"user": "alice", "host": "host", "role": "owner", "read_only": False, "last_seen": 0.0}},
+        {
+            "alice@host": {
+                "user": "alice",
+                "host": "host",
+                "role": "owner",
+                "read_only": False,
+                "last_seen": 0.0,
+            }
+        },
         lock_holder=None,
         checkpoints=[{"identifier": "cp-001", "summary": "init"}],
     )

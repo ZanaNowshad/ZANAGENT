@@ -1,4 +1,5 @@
 """DevOps helper routines."""
+
 from __future__ import annotations
 
 import asyncio
@@ -25,4 +26,8 @@ class DevOpsHelper:
         )
         stdout, stderr = await process.communicate()
         logger.debug("devops command", extra={"args": args, "returncode": process.returncode})
-        return {"stdout": stdout.decode(), "stderr": stderr.decode(), "returncode": str(process.returncode)}
+        return {
+            "stdout": stdout.decode(),
+            "stderr": stderr.decode(),
+            "returncode": str(process.returncode),
+        }

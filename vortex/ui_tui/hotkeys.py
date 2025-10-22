@@ -1,8 +1,8 @@
 """Central definition of keyboard bindings."""
+
 from __future__ import annotations
 
 from textual.binding import Binding
-
 
 GLOBAL_HOTKEYS = [
     Binding("tab", "focus_next", "Next Panel"),

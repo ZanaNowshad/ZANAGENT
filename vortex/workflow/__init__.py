@@ -1,4 +1,5 @@
 """Workflow automation subsystems."""
+
 from __future__ import annotations
 
 from vortex.workflow.engine import WorkflowEngine

@@ -1,4 +1,5 @@
 """Model orchestration for Vortex."""
+
 from __future__ import annotations
 
 import asyncio
@@ -59,7 +60,13 @@ class EchoProvider(BaseProvider):
 
     async def generate(self, prompt: str, **kwargs: Any) -> Dict[str, Any]:
         await asyncio.sleep(0)
-        return {"text": prompt, "usage": {"prompt_tokens": len(prompt.split()), "completion_tokens": len(prompt.split())}}
+        return {
+            "text": prompt,
+            "usage": {
+                "prompt_tokens": len(prompt.split()),
+                "completion_tokens": len(prompt.split()),
+            },
+        }
 
 
 class OpenAIProvider(BaseProvider):
@@ -95,7 +102,9 @@ class OpenAIProvider(BaseProvider):
             usage = payload.get("usage", {})
             return {"text": choice["message"]["content"], "usage": usage}
 
-    async def stream(self, prompt: str, **kwargs: Any) -> AsyncGenerator[str, None]:  # pragma: no cover - network heavy
+    async def stream(
+        self, prompt: str, **kwargs: Any
+    ) -> AsyncGenerator[str, None]:  # pragma: no cover - network heavy
         if not self.api_key:
             raise ProviderError("OpenAI API key missing")
         model = kwargs.get("model", self.default_model)
@@ -169,7 +178,9 @@ class UnifiedModelManager:
         instance = provider_cls(settings=conf)
         return ProviderState(settings=conf, instance=instance)
 
-    async def generate(self, prompt: str, *, model: Optional[str] = None, streaming: bool = False) -> Any:
+    async def generate(
+        self, prompt: str, *, model: Optional[str] = None, streaming: bool = False
+    ) -> Any:
         """Generate a completion using configured providers.
 
         The manager iterates through providers until one succeeds. Failures are
@@ -186,7 +197,10 @@ class UnifiedModelManager:
                     self._update_metrics(state, result)
                     return result
                 except ProviderError as exc:
-                    logger.warning("provider failed", extra={"provider": state.instance.name, "error": str(exc)})
+                    logger.warning(
+                        "provider failed",
+                        extra={"provider": state.instance.name, "error": str(exc)},
+                    )
                     continue
         raise ProviderError("All providers failed")
 

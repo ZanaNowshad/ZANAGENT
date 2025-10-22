@@ -1,4 +1,5 @@
 """Main entrypoint initialising the Vortex runtime."""
+
 from __future__ import annotations
 
 import asyncio

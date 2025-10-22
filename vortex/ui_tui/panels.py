@@ -1,4 +1,5 @@
 """Widgets composing the TUI layout."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -229,9 +230,7 @@ class SessionsPanel(VortexPanel):
     def on_mount(self) -> None:
         if self._pending is not None:
             collaborators, lock_holder, checkpoints = self._pending
-            self.update_sessions(
-                collaborators, lock_holder=lock_holder, checkpoints=checkpoints
-            )
+            self.update_sessions(collaborators, lock_holder=lock_holder, checkpoints=checkpoints)
             self._pending = None
 
     def update_sessions(
@@ -281,7 +280,9 @@ class AnalyticsPanel(VortexPanel):
 class RootLayout(Container):
     """Overall layout container orchestrating sub-panels."""
 
-    def __init__(self, root_path: Optional[Path] = None, *, settings: Optional[TUISettings] = None) -> None:
+    def __init__(
+        self, root_path: Optional[Path] = None, *, settings: Optional[TUISettings] = None
+    ) -> None:
         super().__init__(id="root-layout")
         self._root_path = root_path or Path.cwd()
         self._settings = settings

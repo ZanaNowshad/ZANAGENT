@@ -77,15 +77,25 @@ def runtime() -> DummyRuntime:
 
 
 @pytest.mark.asyncio
-async def test_plan_apply_undo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, runtime: DummyRuntime) -> None:
+async def test_plan_apply_undo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, runtime: DummyRuntime
+) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
-    subprocess.run(["git", "init"], cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subprocess.run(
+        ["git", "init"], cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     subprocess.run(["git", "config", "user.email", "ci@example.com"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.name", "CI"], cwd=repo, check=True)
     (repo / "README.md").write_text("hello\n")
     subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subprocess.run(
+        ["git", "commit", "-m", "init"],
+        cwd=repo,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
 
     monkeypatch.chdir(repo)
     state = TUISessionState()
@@ -121,10 +131,14 @@ async def test_plan_apply_undo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, 
 
 
 @pytest.mark.asyncio
-async def test_tool_and_memory_commands(runtime: DummyRuntime, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_tool_and_memory_commands(
+    runtime: DummyRuntime, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
-    subprocess.run(["git", "init"], cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subprocess.run(
+        ["git", "init"], cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     monkeypatch.chdir(repo)
 
     state = TUISessionState()
@@ -147,10 +161,14 @@ async def test_tool_and_memory_commands(runtime: DummyRuntime, tmp_path: Path, m
 
 
 @pytest.mark.asyncio
-async def test_accessibility_and_theme_commands(tmp_path: Path, runtime: DummyRuntime, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_accessibility_and_theme_commands(
+    tmp_path: Path, runtime: DummyRuntime, monkeypatch: pytest.MonkeyPatch
+) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
-    subprocess.run(["git", "init"], cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subprocess.run(
+        ["git", "init"], cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     monkeypatch.chdir(repo)
 
     state = TUISessionState()

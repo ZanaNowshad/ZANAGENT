@@ -1,4 +1,5 @@
 """Command execution orchestrated by the TUI."""
+
 from __future__ import annotations
 
 import asyncio
@@ -124,7 +125,9 @@ class TUIActionCenter:
         order = planner.plan()
         table = Text("Execution order:\n" + "\n".join(f"• {item}" for item in order))
         self._state.mode = "plan"
-        await self._record_event("plan", {"summary": "Plan generated", "steps": order}, metrics={"success": True})
+        await self._record_event(
+            "plan", {"summary": "Plan generated", "steps": order}, metrics={"success": True}
+        )
         return CommandResult(message="Plan generated", renderable=table, plain_text=table.plain)
 
     async def _cmd_apply(self, command: SlashCommand) -> CommandResult:
@@ -169,7 +172,9 @@ class TUIActionCenter:
             await process.communicate()
         except Exception:
             pass
-        self._state.checkpoints = [c for c in self._state.checkpoints if c.identifier != checkpoint.identifier]
+        self._state.checkpoints = [
+            c for c in self._state.checkpoints if c.identifier != checkpoint.identifier
+        ]
         await self._record_event(
             "undo",
             {"summary": checkpoint.identifier, "files": checkpoint.files},
@@ -177,7 +182,9 @@ class TUIActionCenter:
         )
         return CommandResult(message=f"Checkpoint {checkpoint.identifier} reverted")
 
-    async def _cmd_diff(self, command: SlashCommand, capture_only: bool = False) -> str | CommandResult:
+    async def _cmd_diff(
+        self, command: SlashCommand, capture_only: bool = False
+    ) -> str | CommandResult:
         path = command.args[0] if command.args else None
         args = ["diff"]
         if path:
@@ -256,7 +263,9 @@ class TUIActionCenter:
             {"summary": name, "payload": data},
             metrics={"success": True},
         )
-        return CommandResult(message=f"Tool {name} executed", renderable=text, plain_text=text.plain)
+        return CommandResult(
+            message=f"Tool {name} executed", renderable=text, plain_text=text.plain
+        )
 
     async def _cmd_mode(self, command: SlashCommand) -> CommandResult:
         if not command.args:
@@ -408,9 +417,7 @@ class TUIActionCenter:
                 {"summary": "custom", "path": str(path)},
                 metrics={"success": True},
             )
-            return CommandResult(
-                message=f"Custom theme loaded from {path}", metadata=metadata
-            )
+            return CommandResult(message=f"Custom theme loaded from {path}", metadata=metadata)
         high_contrast = requested == "high_contrast"
         theme = "dark" if high_contrast else requested
         if theme not in {"dark", "light"}:
@@ -457,7 +464,8 @@ class TUIActionCenter:
         columns.add_row("ColsxRows", shutil.get_terminal_size((0, 0)).__repr__())
         columns.add_row("Git", shutil.which("git") or "missing")
         plain = "\n".join(
-            f"{row[0]}: {row[1]}" for row in [
+            f"{row[0]}: {row[1]}"
+            for row in [
                 ("Platform", platform.platform()),
                 ("Python", platform.python_version()),
                 ("Terminal", os.environ.get("TERM", "unknown")),
@@ -465,9 +473,7 @@ class TUIActionCenter:
                 ("Git", shutil.which("git") or "missing"),
             ]
         )
-        return CommandResult(
-            message="Diagnostics complete", renderable=columns, plain_text=plain
-        )
+        return CommandResult(message="Diagnostics complete", renderable=columns, plain_text=plain)
 
     async def _cmd_session(self, command: SlashCommand) -> CommandResult:
         if self._session_manager is None:
@@ -484,7 +490,9 @@ class TUIActionCenter:
             self._state.collaborators = metadata.collaborators
             self._state.transcript_path = str(metadata.path / "transcript.md")
             details = await self._session_manager.session_details(metadata.session_id)
-            await self._record_event("session-new", {"summary": metadata.session_id}, metrics={"success": True})
+            await self._record_event(
+                "session-new", {"summary": metadata.session_id}, metrics={"success": True}
+            )
             return CommandResult(
                 message=f"Session {metadata.session_id} created",
                 metadata={"session": details, "refresh_sessions": True},
@@ -547,7 +555,9 @@ class TUIActionCenter:
                 metrics={"success": True},
             )
             text = Text(f"Share token:\n{token}", style="green")
-            return CommandResult(message="Share token generated", renderable=text, plain_text=text.plain)
+            return CommandResult(
+                message="Share token generated", renderable=text, plain_text=text.plain
+            )
         if action == "new" or action == "join":
             return CommandResult(message=f"Unsupported session action: {action}")
         return CommandResult(message=f"Unknown session action: {action}")
@@ -610,7 +620,12 @@ class TUIActionCenter:
         insights = await self._session_manager.analytics_insights(session_id)
         await self._record_event("insights", {"summary": "generated"}, metrics={"success": True})
         text = Text("\n".join(f"• {line}" for line in insights) or "No insights yet.")
-        return CommandResult(message="Insights generated", renderable=text, plain_text=text.plain, metadata={"insights": insights})
+        return CommandResult(
+            message="Insights generated",
+            renderable=text,
+            plain_text=text.plain,
+            metadata={"insights": insights},
+        )
 
     async def _cmd_compare(self, command: SlashCommand) -> CommandResult:
         if self._session_manager is None:
@@ -623,9 +638,19 @@ class TUIActionCenter:
         table.add_column("Metric")
         table.add_column(first)
         table.add_column(second)
-        table.add_row("Success Rate", f"{comparison['first']['success_rate']*100:.1f}%", f"{comparison['second']['success_rate']*100:.1f}%")
-        table.add_row("Total Cost", f"${self._total_cost(comparison['first']):.2f}", f"${self._total_cost(comparison['second']):.2f}")
-        await self._record_event("compare", {"summary": f"{first} vs {second}"}, metrics={"success": True})
+        table.add_row(
+            "Success Rate",
+            f"{comparison['first']['success_rate']*100:.1f}%",
+            f"{comparison['second']['success_rate']*100:.1f}%",
+        )
+        table.add_row(
+            "Total Cost",
+            f"${self._total_cost(comparison['first']):.2f}",
+            f"${self._total_cost(comparison['second']):.2f}",
+        )
+        await self._record_event(
+            "compare", {"summary": f"{first} vs {second}"}, metrics={"success": True}
+        )
         return CommandResult(message="Sessions compared", renderable=table)
 
     @staticmethod

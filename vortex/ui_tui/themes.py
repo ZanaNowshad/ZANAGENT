@@ -1,4 +1,5 @@
 """Theme definitions and helpers for the TUI."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -161,7 +162,9 @@ class ThemeError(RuntimeError):
     """Raised when a custom theme cannot be loaded."""
 
 
-def theme_css(mode: str, *, no_color: bool, high_contrast: bool = False, custom: Path | None = None) -> str:
+def theme_css(
+    mode: str, *, no_color: bool, high_contrast: bool = False, custom: Path | None = None
+) -> str:
     """Return CSS for the requested theme with fallbacks.
 
     ``mode`` accepts ``dark`` or ``light``; ``auto`` defaults to ``dark``. When
@@ -293,9 +296,7 @@ def _validate_contrast(css: str) -> None:
     if background and foreground:
         ratio = _contrast_ratio(background, foreground)
         if ratio < 4.5:  # WCAG AA threshold
-            raise ThemeError(
-                f"Theme contrast ratio {ratio:.2f} is below WCAG AA requirements"
-            )
+            raise ThemeError(f"Theme contrast ratio {ratio:.2f} is below WCAG AA requirements")
 
 
 def _extract_color(css: str, token: str) -> Optional[str]:

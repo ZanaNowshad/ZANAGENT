@@ -3,7 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from vortex.devtools import Debugger, DevOpsHelper, DevToolsSuite, TestFramework as VortexTestFramework
+from vortex.devtools import (
+    Debugger,
+    DevOpsHelper,
+    DevToolsSuite,
+    TestFramework as VortexTestFramework,
+)
 
 
 @pytest.mark.asyncio

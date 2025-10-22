@@ -80,9 +80,7 @@ class AccessibilityAnnouncer:
             return
         suffix = f": {detail}" if detail and self._preferences.verbosity != "minimal" else ""
         panel_title = panel.title() if panel else ""
-        await self.announce(
-            f"Focus on {panel_title} panel{suffix}", severity="information"
-        )
+        await self.announce(f"Focus on {panel_title} panel{suffix}", severity="information")
 
     async def announce_plain_text(self, summary: str) -> None:
         """Emit a summary of the latest diff/log for screen readers."""

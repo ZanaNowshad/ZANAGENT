@@ -1,4 +1,5 @@
 """Extended Rich UI bridge."""
+
 from __future__ import annotations
 
 from typing import Iterable
@@ -17,7 +18,9 @@ class RichUIBridge:
     def __init__(self, ui: UnifiedRichUI) -> None:
         self._ui = ui
 
-    def render_table(self, title: str, headers: Iterable[str], rows: Iterable[Iterable[str]]) -> None:
+    def render_table(
+        self, title: str, headers: Iterable[str], rows: Iterable[Iterable[str]]
+    ) -> None:
         table = Table(title=title)
         for header in headers:
             table.add_column(header)

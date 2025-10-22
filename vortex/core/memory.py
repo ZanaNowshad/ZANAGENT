@@ -1,4 +1,5 @@
 """Persistent memory and vector search infrastructure."""
+
 from __future__ import annotations
 
 import asyncio
@@ -102,7 +103,9 @@ class UnifiedMemorySystem:
         )
         self._conn.commit()
 
-    async def add(self, kind: str, content: str, metadata: Optional[Dict[str, Any]] = None) -> MemoryRecord:
+    async def add(
+        self, kind: str, content: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> MemoryRecord:
         """Persist a memory and update the vector store."""
 
         metadata = metadata or {}
@@ -120,7 +123,9 @@ class UnifiedMemorySystem:
 
     async def delete(self, record_id: int) -> None:
         async with self._lock:
-            await asyncio.to_thread(self._conn.execute, "DELETE FROM memory WHERE id = ?", (record_id,))
+            await asyncio.to_thread(
+                self._conn.execute, "DELETE FROM memory WHERE id = ?", (record_id,)
+            )
             self._conn.commit()
             self._vector_store.remove(record_id)
 
@@ -131,7 +136,9 @@ class UnifiedMemorySystem:
         ids = self._vector_store.search(vector, limit=limit)
         records: List[MemoryRecord] = []
         for record_id, score in ids:
-            cursor = await asyncio.to_thread(self._conn.execute, "SELECT * FROM memory WHERE id = ?", (record_id,))
+            cursor = await asyncio.to_thread(
+                self._conn.execute, "SELECT * FROM memory WHERE id = ?", (record_id,)
+            )
             row = cursor.fetchone()
             if not row:
                 continue

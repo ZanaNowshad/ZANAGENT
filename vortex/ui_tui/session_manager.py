@@ -183,7 +183,9 @@ class SessionManager:
             extra={"session_id": session_id, "user": user, "role": role, "read_only": read_only},
         )
         if self._analytics:
-            await self._analytics.register_session(session_id, metadata.title, owner=metadata.created_by)
+            await self._analytics.register_session(
+                session_id, metadata.title, owner=metadata.created_by
+            )
         return metadata
 
     async def join_with_token(self, token: str, user: str) -> SessionMetadata:
@@ -429,7 +431,9 @@ class SessionManager:
                     try:
                         payload = self._encryptor.decrypt_event(session_id, record["payload"])
                     except Exception:
-                        logger.warning("failed to decrypt session payload", extra={"id": session_id})
+                        logger.warning(
+                            "failed to decrypt session payload", extra={"id": session_id}
+                        )
                         continue
                 else:
                     payload = record.get("payload", {})
@@ -477,4 +481,3 @@ class SessionManager:
 
 
 __all__ = ["SessionManager", "SessionEvent", "SessionMetadata"]
-

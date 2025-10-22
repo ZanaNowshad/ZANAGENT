@@ -1,4 +1,5 @@
 """Integration subsystems for Vortex."""
+
 from __future__ import annotations
 
 from vortex.integration.api_hub import APIHub

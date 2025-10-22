@@ -17,9 +17,11 @@ from vortex.performance import (
 
 @pytest.fixture()
 def model_manager() -> UnifiedModelManager:
-    return UnifiedModelManager([
-        {"name": "echo", "type": "echo", "cost_per_1k_tokens": 0.01},
-    ])
+    return UnifiedModelManager(
+        [
+            {"name": "echo", "type": "echo", "cost_per_1k_tokens": 0.01},
+        ]
+    )
 
 
 @pytest.mark.asyncio
@@ -70,5 +72,7 @@ async def test_cache_and_parallel_tools() -> None:
     assert module.sqrt(4) == 2
 
     processor = ParallelProcessor(concurrency=2)
-    results = await processor.run([lambda value=i: asyncio.sleep(0.01, result=value) for i in range(3)])
+    results = await processor.run(
+        [lambda value=i: asyncio.sleep(0.01, result=value) for i in range(3)]
+    )
     assert sorted(results) == [0, 1, 2]
