@@ -40,5 +40,17 @@ class AuditTrail:
         event = AuditEvent(actor=actor, action=action, metadata=metadata, timestamp=time.time())
         self.record(event)
 
+    def read_recent(self, limit: int = 100) -> list[Dict[str, Any]]:
+        if not self.path.exists():
+            return []
+        lines = self.path.read_text(encoding="utf-8").strip().splitlines()[-limit:]
+        events = []
+        for line in lines:
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:  # pragma: no cover - handles manual file edits
+                continue
+        return events
+
 
 __all__ = ["AuditTrail", "AuditEvent"]

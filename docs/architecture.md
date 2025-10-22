@@ -41,3 +41,34 @@ system.
   `PROVIDER_REGISTRY`.
 - Extend the CLI by adding commands to `vortex/cli/app.py` or new Typer subapps.
 - Intelligence modules can consume managers through dependency injection.
+
+## Phase 3 Subsystems
+
+- **Integration Layer** — `APIHub`, `CloudIntegration`, `DatabaseManager`, and
+  `GitManager` provide unified access to external APIs, cloud control planes,
+  encrypted data persistence, and repository automation. All integrations reuse
+  the security manager for credential storage and permission checks.
+- **AI Enhancements** — `ContextManager`, `ContinuousLearningSystem`,
+  `AdvancedCodeIntelligence`, and `NLPEngine` extend reasoning by persisting
+  conversational context, analysing source code, learning from feedback, and
+  extracting language insights without additional dependencies.
+- **Performance Suite** — The `PerformanceMonitor`, `PerformanceAnalytics`,
+  `CostTracker`, `CacheManager`, `ConnectionPool`, `LazyLoader`, and
+  `ParallelProcessor` cooperate to track latency, estimate spend, cache
+  expensive calls, and bound concurrency across integrations.
+- **Workflow Automation** — `WorkflowEngine`, `MacroSystem`, and
+  `WorkflowScheduler` deliver dependency-aware orchestration, reusable macro
+  definitions, and timed task execution.
+- **Security Extensions** — New `AccessControl`, `AuditSystem`, and
+  `DataEncryptor` components sit alongside the existing security manager to
+  implement RBAC, rich audit queries, and encrypted database storage.
+- **UI Adapters** — `WebUI`, `DesktopGUI`, `MobileAPI`, and `RichUIBridge`
+  expose the runtime through HTTP, desktop-style dashboards, mobile-friendly
+  JSON APIs, and higher-level Rich renderers.
+- **Developer Tooling** — `TestFramework`, `DevToolsSuite`, `Debugger`, and
+  `DevOpsHelper` support automated diagnostics, local workflows, and safe shell
+  execution.
+- **Education & Experimentation** — `LearningMode`, `CodeExplainer`,
+  `MultiAgentCoordinator`, `SelfImprovementLoop`, and `Predictor` demonstrate
+  how advanced features plug into the runtime for training, explanation, and
+  research use cases.

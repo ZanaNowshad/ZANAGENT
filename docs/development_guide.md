@@ -47,3 +47,26 @@ providers into `UnifiedModelManager`.
 
 The `.github/workflows/ci.yml` workflow runs pytest and coverage. Extend it with
 linting tools as needed.
+
+## TUI Interaction Model
+
+Vortex ships with a Textual-powered terminal interface optimised for the
+plan→act→review feedback loop. Launch it via `vortex tui` and navigate the four
+primary panels using `Tab`/`Shift+Tab`:
+
+- **Main Panel** – renders chat transcripts, plans, diffs, and log summaries.
+- **Context Panel** – shows the working tree and context snippets.
+- **Actions Panel** – exposes high-value operations with keyboard hints.
+- **Status Panel** – tracks branch, checkpoints, budgets, and test results.
+
+Key bindings favour home-row ergonomics: `a` applies checkpoints, `u` undoes,
+`p` plans, `s` simulates workflows, `t` toggles the tool list, `T` runs tests,
+`:` opens the command palette, `/` focuses the slash command bar, and `?`
+toggles the help overlay. Diff navigation uses `h`/`l` while list navigation is
+handled with `j`/`k`/`g`/`G`.
+
+Slash commands power automation and integrate with the runtime managers. Use
+`/plan`, `/apply`, `/undo`, `/diff`, `/test -k pattern`, `/ctx add path`, `/tool
+name {json}`, `/mode review`, `/budget 15`, `/auto 6`, and `/help` to orchestrate
+the agent without leaving the terminal. The UI persists session state under
+`~/.agent/sessions/` so `vortex tui --resume` restores the previous context.

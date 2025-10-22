@@ -60,5 +60,27 @@ class CredentialStore:
             return self._fernet.decrypt(data).decode("utf-8")
         return base64.urlsafe_b64decode(data).decode("utf-8")
 
+class DataEncryptor:
+    """Encrypt arbitrary values for database persistence."""
 
-__all__ = ["CredentialStore", "EncryptionKey"]
+    def __init__(self, store: CredentialStore) -> None:
+        self._store = store
+        self._fernet = store._fernet
+
+    def encrypt_value(self, value: str) -> str:
+        if self._fernet is None:
+            token = base64.urlsafe_b64encode(value.encode("utf-8"))
+        else:
+            token = self._fernet.encrypt(value.encode("utf-8"))
+        return token.decode("utf-8")
+
+    def decrypt_value(self, value: str) -> str:
+        data = value.encode("utf-8")
+        if self._fernet is None:
+            decoded = base64.urlsafe_b64decode(data)
+        else:
+            decoded = self._fernet.decrypt(data)
+        return decoded.decode("utf-8")
+
+
+__all__ = ["CredentialStore", "EncryptionKey", "DataEncryptor"]

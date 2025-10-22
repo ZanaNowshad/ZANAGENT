@@ -26,6 +26,14 @@ class SecurityError(VortexError):
     """Raised when security policies are violated."""
 
 
+class IntegrationError(VortexError):
+    """Raised by integration subsystems when external services fail."""
+
+
+class WorkflowError(VortexError):
+    """Raised when workflow execution cannot proceed."""
+
+
 __all__ = [
     "VortexError",
     "ConfigurationError",
@@ -33,4 +41,6 @@ __all__ = [
     "MemoryError",
     "PluginError",
     "SecurityError",
+    "IntegrationError",
+    "WorkflowError",
 ]
