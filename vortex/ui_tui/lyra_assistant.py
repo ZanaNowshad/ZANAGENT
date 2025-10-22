@@ -1,7 +1,5 @@
 """Inline Lyra assistant surfaced inside the TUI."""
 
-"""Inline Lyra assistant surfaced inside the TUI."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

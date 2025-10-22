@@ -1,4 +1,5 @@
 """Performance monitoring and optimisation utilities."""
+
 from __future__ import annotations
 
 from vortex.performance.analytics import PerformanceAnalytics

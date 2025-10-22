@@ -1,4 +1,5 @@
 """Shared state management for the Textual user interface."""
+
 from __future__ import annotations
 
 import json
@@ -11,6 +12,21 @@ from rich.console import RenderableType
 
 SESSION_DIR = Path.home() / ".agent" / "sessions"
 SESSION_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@dataclass
+class CollaboratorState:
+    """Represents a collaborator connected to the active session."""
+
+    user: str
+    host: str
+    role: str
+    read_only: bool
+    last_seen: float
+
+    def label(self) -> str:
+        access = "RO" if self.read_only else "RW"
+        return f"{self.user}@{self.host} ({self.role}|{access})"
 
 
 @dataclass
@@ -65,6 +81,15 @@ class TUISessionState:
     screen_reader_mode: bool = False
     last_plain_text: Optional[str] = None
     history: List[str] = field(default_factory=list)
+    session_id: Optional[str] = None
+    session_role: str = "owner"
+    collaborators: Dict[str, CollaboratorState] = field(default_factory=dict)
+    session_lock_holder: Optional[str] = None
+    session_metrics: Dict[str, float] = field(default_factory=dict)
+    analytics_trends: List[Dict[str, Any]] = field(default_factory=list)
+    insights: List[str] = field(default_factory=list)
+    transcript_path: Optional[str] = None
+    session_acl: Dict[str, str] = field(default_factory=dict)
 
     def add_log(self, level: str, message: str, *, icon: str = "") -> SessionLogEntry:
         entry = SessionLogEntry(timestamp=time.time(), level=level, message=message, icon=icon)
@@ -116,6 +141,15 @@ class TUISessionState:
             "screen_reader_mode": self.screen_reader_mode,
             "last_plain_text": self.last_plain_text,
             "history": self.history[-200:],
+            "session_id": self.session_id,
+            "session_role": self.session_role,
+            "collaborators": {key: value.__dict__ for key, value in self.collaborators.items()},
+            "session_lock_holder": self.session_lock_holder,
+            "session_metrics": self.session_metrics,
+            "analytics_trends": self.analytics_trends[-50:],
+            "insights": self.insights[-20:],
+            "transcript_path": self.transcript_path,
+            "session_acl": self.session_acl,
         }
 
     @classmethod
@@ -129,7 +163,9 @@ class TUISessionState:
         state.theme = payload.get("theme", state.theme)
         state.high_contrast = payload.get("high_contrast", state.high_contrast)
         state.feature_flags.update(payload.get("feature_flags", {}))
-        state.accessibility_enabled = payload.get("accessibility_enabled", state.accessibility_enabled)
+        state.accessibility_enabled = payload.get(
+            "accessibility_enabled", state.accessibility_enabled
+        )
         state.accessibility_verbosity = payload.get(
             "accessibility_verbosity", state.accessibility_verbosity
         )
@@ -137,6 +173,19 @@ class TUISessionState:
         state.screen_reader_mode = payload.get("screen_reader_mode", state.screen_reader_mode)
         state.last_plain_text = payload.get("last_plain_text")
         state.history = list(payload.get("history", []))
+        state.session_id = payload.get("session_id")
+        state.session_role = payload.get("session_role", state.session_role)
+        for key, value in payload.get("collaborators", {}).items():
+            try:
+                state.collaborators[key] = CollaboratorState(**value)
+            except TypeError:
+                continue
+        state.session_lock_holder = payload.get("session_lock_holder")
+        state.session_metrics = dict(payload.get("session_metrics", {}))
+        state.analytics_trends = list(payload.get("analytics_trends", []))
+        state.insights = list(payload.get("insights", []))
+        state.transcript_path = payload.get("transcript_path")
+        state.session_acl = dict(payload.get("session_acl", {}))
         for item in payload.get("logs", []):
             try:
                 state.logs.append(SessionLogEntry(**item))
@@ -196,6 +245,23 @@ class TUIRuntimeBridge:
         tmp = self.session_file().with_suffix(".tmp")
         tmp.write_text(json.dumps(payload, indent=2))
         tmp.replace(self.session_file())
+
+    def session_directory(self, session_id: str) -> Path:
+        """Return the filesystem directory associated with ``session_id``."""
+
+        path = Path.home() / ".vortex" / "sessions" / session_id
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+
+__all__ = [
+    "CollaboratorState",
+    "TUIOptions",
+    "TUIRuntimeBridge",
+    "TUISessionState",
+    "SessionLogEntry",
+    "CheckpointSnapshot",
+]
 
 
 __all__ = [

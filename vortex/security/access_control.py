@@ -1,4 +1,5 @@
 """Role-based access control helpers."""
+
 from __future__ import annotations
 
 import asyncio

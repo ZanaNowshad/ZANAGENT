@@ -15,7 +15,9 @@ async def test_api_hub_register_and_call(tmp_path: Path) -> None:
         allowed_modules=["json"],
         forbidden_modules=[],
     )
-    transport = httpx.MockTransport(lambda request: httpx.Response(200, json={"url": str(request.url)}))
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, json={"url": str(request.url)})
+    )
     client = httpx.AsyncClient(transport=transport, base_url="https://example.test")
     hub = APIHub(security, client=client)
 
@@ -38,7 +40,9 @@ async def test_cloud_integration_cache(tmp_path: Path) -> None:
     await cloud.add_account("default", "https://cloud.test", credential="secret")
 
     async def _client(account) -> httpx.AsyncClient:  # type: ignore[no-untyped-def]
-        transport = httpx.MockTransport(lambda request: httpx.Response(200, json={"path": request.url.path}))
+        transport = httpx.MockTransport(
+            lambda request: httpx.Response(200, json={"path": request.url.path})
+        )
         return httpx.AsyncClient(transport=transport, base_url=account.base_url)
 
     cloud._client = _client  # type: ignore[assignment]

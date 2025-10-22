@@ -1,9 +1,10 @@
 """Runtime status aggregation for the TUI."""
+
 from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Optional
+from typing import Iterable, Optional
 
 from rich.table import Table
 
@@ -26,6 +27,8 @@ class StatusSnapshot:
     budget_minutes: Optional[int]
     cpu_percent: float
     memory_percent: float
+    collaborators: list[str]
+    lock_holder: Optional[str]
 
 
 class StatusAggregator:
@@ -51,7 +54,13 @@ class StatusAggregator:
         return stdout.decode().strip()
 
     async def gather(
-        self, *, mode: str, budget_minutes: Optional[int], checkpoint: Optional[str]
+        self,
+        *,
+        mode: str,
+        budget_minutes: Optional[int],
+        checkpoint: Optional[str],
+        collaborators: Optional[Iterable[str]] = None,
+        lock_holder: Optional[str] = None,
     ) -> StatusSnapshot:
         with profile("status_gather"):
             branch = await self._safe_git("rev-parse", "--abbrev-ref", "HEAD")
@@ -68,6 +77,8 @@ class StatusAggregator:
                 budget_minutes=budget_minutes,
                 cpu_percent=cpu_usage,
                 memory_percent=memory_usage,
+                collaborators=list(collaborators or []),
+                lock_holder=lock_holder,
             )
             return snapshot
 
@@ -107,6 +118,17 @@ class StatusAggregator:
         table.add_row("Cost", f"${snapshot.total_cost:.2f}")
         table.add_row("CPU", f"{snapshot.cpu_percent:4.1f}%")
         table.add_row("Memory", f"{snapshot.memory_percent:4.1f}%")
+        if snapshot.collaborators:
+            table.add_row(
+                "Collaborators",
+                (
+                    ", ".join(snapshot.collaborators)
+                    if len(snapshot.collaborators) < 4
+                    else f"{len(snapshot.collaborators)} online"
+                ),
+            )
+        if snapshot.lock_holder:
+            table.add_row("Lock", snapshot.lock_holder)
         return table
 
 

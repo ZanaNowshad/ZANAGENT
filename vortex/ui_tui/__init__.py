@@ -1,4 +1,5 @@
 """Terminal user interface package for Vortex."""
+
 from __future__ import annotations
 
 from .context import TUIOptions

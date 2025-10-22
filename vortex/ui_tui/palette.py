@@ -1,4 +1,5 @@
 """Command palette definitions."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -50,19 +51,41 @@ BASE_ENTRIES: List[PaletteEntry] = [
     PaletteEntry(label="Add Context", hint="Ingest a file", command="/ctx add"),
     PaletteEntry(label="Open Help", hint="Toggle help panel", command="/help"),
     PaletteEntry(label="Toggle Auto", hint="Configure autonomous steps", command="/auto"),
-    PaletteEntry(label="Toggle Accessibility", hint="Enable announcements", command="/accessibility on"),
-    PaletteEntry(label="Narration On", hint="Screen reader narration", command="/accessibility narration on"),
-    PaletteEntry(label="High Contrast", hint="Screen reader contrast", command="/accessibility contrast on"),
-    PaletteEntry(label="Theme", hint="Switch between dark, light, high contrast", command="/theme dark"),
-    PaletteEntry(label="Custom Theme", hint="Load theme from file", command="/theme custom ~/.vortex/theme.toml"),
+    PaletteEntry(
+        label="Toggle Accessibility", hint="Enable announcements", command="/accessibility on"
+    ),
+    PaletteEntry(
+        label="Narration On", hint="Screen reader narration", command="/accessibility narration on"
+    ),
+    PaletteEntry(
+        label="High Contrast", hint="Screen reader contrast", command="/accessibility contrast on"
+    ),
+    PaletteEntry(
+        label="Theme", hint="Switch between dark, light, high contrast", command="/theme dark"
+    ),
+    PaletteEntry(
+        label="Custom Theme",
+        hint="Load theme from file",
+        command="/theme custom ~/.vortex/theme.toml",
+    ),
     PaletteEntry(label="Settings", hint="Open settings wizard", command="/settings"),
     PaletteEntry(label="Lyra Assistant", hint="Ask the Lyra inline helper", command="/lyra"),
     PaletteEntry(label="Diagnostics", hint="Run environment checks", command="/doctor"),
     PaletteEntry(label="Quit", hint="Confirm and exit", command="/quit"),
+    PaletteEntry(label="New Session", hint="Create collaboration session", command="/session new"),
+    PaletteEntry(label="Join Session", hint="Join shared session", command="/session join"),
+    PaletteEntry(label="Session Analytics", hint="Summarise KPIs", command="/analytics"),
+    PaletteEntry(label="Dashboard", hint="Open analytics dashboard", command="/dashboard"),
+    PaletteEntry(label="Insights", hint="Generate narrative summary", command="/insights"),
+    PaletteEntry(label="Sync", hint="Push/pull collaboration state", command="/sync"),
+    PaletteEntry(label="Reports", hint="Export metrics report", command="/reports"),
+    PaletteEntry(label="Compare Sessions", hint="Diff session analytics", command="/compare"),
 ]
 
 
-def iter_palette_entries(state: TUISessionState, runtime: Any | None = None) -> Iterable[PaletteEntry]:
+def iter_palette_entries(
+    state: TUISessionState, runtime: Any | None = None
+) -> Iterable[PaletteEntry]:
     """Yield palette entries including dynamic history items."""
 
     yield from BASE_ENTRIES

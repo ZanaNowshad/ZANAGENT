@@ -1,4 +1,5 @@
 """Widgets composing the TUI layout."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -23,6 +24,7 @@ from textual.widgets import (
     Static,
 )
 
+from .analytics_panel import analytics_dashboard, sessions_table
 from .help import help_renderable
 from .palette import PaletteEntry
 from .settings import TUISettings
@@ -146,6 +148,11 @@ class CommandBar(Container):
         self.suggestions = ListView(id="command-suggestions")
         self.suggestions.can_focus = False
         self.suggestions.add_class("hidden")
+        self._pending_entries: list[PaletteEntry] = []
+
+    def on_mount(self) -> None:
+        if self._pending_entries:
+            self._render_suggestions(self._pending_entries)
 
     def compose(self) -> ComposeResult:
         yield self.input
@@ -154,9 +161,23 @@ class CommandBar(Container):
     def update_suggestions(self, entries: list[PaletteEntry]) -> None:
         """Render fuzzy suggestions below the command input."""
 
-        self.suggestions.clear()
+        self._pending_entries = list(entries)
         if not entries:
-            self.suggestions.add_class("hidden")
+            self.clear_suggestions()
+            return
+        self._render_suggestions(self._pending_entries)
+
+    def clear_suggestions(self) -> None:
+        self._pending_entries.clear()
+        if self.suggestions.is_attached:
+            self.suggestions.clear()
+        else:
+            self.suggestions._nodes._clear()
+        self.suggestions.add_class("hidden")
+
+    def _render_suggestions(self, entries: list[PaletteEntry]) -> None:
+        if not entries:
+            self.clear_suggestions()
             return
         items = [
             ListItem(Label(f"{entry.command} — {entry.hint}"), id=f"suggestion-{index}")
@@ -164,12 +185,14 @@ class CommandBar(Container):
         ]
         for entry, item in zip(entries, items, strict=False):
             item.data = entry.command
-        self.suggestions.extend(items)
+        if self.suggestions.is_attached:
+            self.suggestions.clear()
+            self.suggestions.extend(items)
+        else:
+            self.suggestions._nodes._clear()
+            for item in items:
+                self.suggestions._add_child(item)
         self.suggestions.remove_class("hidden")
-
-    def clear_suggestions(self) -> None:
-        self.suggestions.clear()
-        self.suggestions.add_class("hidden")
 
     @on(ListView.Selected, "#command-suggestions")
     def _suggestion_selected(self, event: ListView.Selected) -> None:
@@ -192,10 +215,74 @@ class TelemetryBar(Static):
         )
 
 
+class SessionsPanel(VortexPanel):
+    """Render collaborator presence, locks, and checkpoints."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._content: Static | None = None
+        self._pending: tuple[dict[str, dict], str | None, list[dict]] | None = None
+
+    def compose(self) -> ComposeResult:
+        self._content = Static("No collaborators yet", id="sessions-content")
+        yield self._content
+
+    def on_mount(self) -> None:
+        if self._pending is not None:
+            collaborators, lock_holder, checkpoints = self._pending
+            self.update_sessions(collaborators, lock_holder=lock_holder, checkpoints=checkpoints)
+            self._pending = None
+
+    def update_sessions(
+        self,
+        collaborators: dict[str, dict],
+        *,
+        lock_holder: str | None,
+        checkpoints: list[dict],
+    ) -> None:
+        if self._content is None or not self.is_attached or not self._content.is_attached:
+            self._pending = (collaborators, lock_holder, checkpoints)
+            return
+        table = sessions_table(collaborators, lock_holder)
+        if checkpoints:
+            checkpoints_text = "\n".join(
+                f"{item['identifier']}: {item['summary']}" for item in checkpoints[-5:]
+            )
+            table.caption = (table.caption or "") + f"\nCheckpoints: {checkpoints_text}"
+        self._content.update(table)
+
+
+class AnalyticsPanel(VortexPanel):
+    """Render KPIs and insights for the active session."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._content: Static | None = None
+        self._pending: tuple[dict, list[str]] | None = None
+
+    def compose(self) -> ComposeResult:
+        self._content = Static("Analytics pending", id="analytics-content")
+        yield self._content
+
+    def on_mount(self) -> None:
+        if self._pending is not None:
+            summary, insights = self._pending
+            self.update_summary(summary, insights)
+            self._pending = None
+
+    def update_summary(self, summary: dict, insights: list[str]) -> None:
+        if self._content is None or not self.is_attached or not self._content.is_attached:
+            self._pending = (summary, insights)
+            return
+        self._content.update(analytics_dashboard(summary, insights))
+
+
 class RootLayout(Container):
     """Overall layout container orchestrating sub-panels."""
 
-    def __init__(self, root_path: Optional[Path] = None, *, settings: Optional[TUISettings] = None) -> None:
+    def __init__(
+        self, root_path: Optional[Path] = None, *, settings: Optional[TUISettings] = None
+    ) -> None:
         super().__init__(id="root-layout")
         self._root_path = root_path or Path.cwd()
         self._settings = settings
@@ -208,7 +295,9 @@ class RootLayout(Container):
             yield MainPanel(id="main-panel")
             with Vertical(id="side-panels"):
                 yield ContextPanel(self._root_path)
+                yield SessionsPanel(id="sessions-panel")
                 yield ActionsPanel(id="actions-panel")
+                yield AnalyticsPanel(id="analytics-panel")
         yield StatusPanel(id="status-panel")
         yield ToolPanel(id="tool-panel", classes="hidden")
         yield HelpPanel(id="help-panel", classes="hidden")
@@ -224,6 +313,8 @@ __all__ = [
     "HelpPanel",
     "MainPanel",
     "RootLayout",
+    "SessionsPanel",
+    "AnalyticsPanel",
     "StatusPanel",
     "TelemetryBar",
     "ToolPanel",

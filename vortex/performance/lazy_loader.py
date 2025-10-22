@@ -1,4 +1,5 @@
 """Lazy module loading utilities."""
+
 from __future__ import annotations
 
 import importlib

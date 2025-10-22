@@ -31,11 +31,11 @@ async def test_web_ui_serves_request(tmp_path: Path) -> None:
     web = WebUI()
 
     async def status(_method: str) -> str:
-        return "{\"ok\": true}"
+        return '{"ok": true}'
 
     web.route("/status", status)
     payload = await web.simulate("GET", "/status")
-    assert "\"ok\": true" in payload
+    assert '"ok": true' in payload
 
 
 def test_rich_bridge_and_desktop_gui() -> None:

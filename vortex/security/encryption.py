@@ -1,11 +1,13 @@
 """Credential encryption helpers."""
+
 from __future__ import annotations
 
 import base64
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional, Tuple
 
 from vortex.utils.errors import SecurityError
 
@@ -60,6 +62,7 @@ class CredentialStore:
             return self._fernet.decrypt(data).decode("utf-8")
         return base64.urlsafe_b64decode(data).decode("utf-8")
 
+
 class DataEncryptor:
     """Encrypt arbitrary values for database persistence."""
 
@@ -83,4 +86,102 @@ class DataEncryptor:
         return decoded.decode("utf-8")
 
 
-__all__ = ["CredentialStore", "EncryptionKey", "DataEncryptor"]
+class SessionEncryptor:
+    """Encrypt per-session payloads and generate share tokens."""
+
+    def __init__(self, store: CredentialStore) -> None:
+        self._store = store
+        self._fernet = store._fernet
+        self._cache: Dict[str, bytes] = {}
+
+    def ensure_session_key(self, session_id: str) -> str:
+        """Load or create the symmetric key for ``session_id``."""
+
+        key_path = self._store.directory / f"session-{session_id}.key"
+        if key_path.exists():
+            token = key_path.read_bytes()
+            key_bytes = self._decrypt_bytes(token)
+        else:
+            key_bytes = self._generate_key()
+            token = self._encrypt_bytes(key_bytes)
+            key_path.write_bytes(token)
+        self._cache[session_id] = key_bytes
+        return base64.urlsafe_b64encode(key_bytes).decode("utf-8")
+
+    def encrypt_event(self, session_id: str, payload: dict) -> str:
+        """Encrypt a JSON payload for persistence or sharing."""
+
+        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        cipher = self._session_cipher(session_id)
+        if cipher:
+            token = cipher.encrypt(data)
+        else:  # pragma: no cover - fallback when cryptography missing
+            token = base64.urlsafe_b64encode(data)
+        return token.decode("utf-8")
+
+    def decrypt_event(self, session_id: str, token: str) -> dict:
+        data = token.encode("utf-8")
+        cipher = self._session_cipher(session_id)
+        if cipher:
+            decoded = cipher.decrypt(data)
+        else:  # pragma: no cover - fallback path
+            decoded = base64.urlsafe_b64decode(data)
+        return json.loads(decoded.decode("utf-8"))
+
+    def generate_share_token(self, session_id: str, *, role: str, read_only: bool) -> str:
+        """Return a signed token describing share permissions."""
+
+        key = self.ensure_session_key(session_id)
+        payload = {
+            "session": session_id,
+            "role": role,
+            "read_only": read_only,
+            "key": key,
+        }
+        raw = json.dumps(payload).encode("utf-8")
+        token = base64.urlsafe_b64encode(self._encrypt_bytes(raw))
+        return token.decode("utf-8")
+
+    def decode_share_token(self, token: str) -> Tuple[str, str, bool]:
+        """Decode a previously generated share token."""
+
+        raw = base64.urlsafe_b64decode(token.encode("utf-8"))
+        payload = json.loads(self._decrypt_bytes(raw).decode("utf-8"))
+        session_id = payload["session"]
+        key = payload["key"].encode("utf-8")
+        self._cache[session_id] = base64.urlsafe_b64decode(key)
+        return (
+            session_id,
+            payload.get("role", "collaborator"),
+            bool(payload.get("read_only", False)),
+        )
+
+    def _session_cipher(self, session_id: str):
+        key = self._cache.get(session_id)
+        if key is None:
+            try:
+                key_b64 = self.ensure_session_key(session_id)
+            except SecurityError:
+                return None
+            key = base64.urlsafe_b64decode(key_b64.encode("utf-8"))
+        if Fernet is None:
+            return None
+        return Fernet(base64.urlsafe_b64encode(key))
+
+    def _generate_key(self) -> bytes:
+        if Fernet:
+            return base64.urlsafe_b64decode(Fernet.generate_key())
+        return os.urandom(32)
+
+    def _encrypt_bytes(self, payload: bytes) -> bytes:
+        if self._fernet:
+            return self._fernet.encrypt(payload)
+        return base64.urlsafe_b64encode(payload)
+
+    def _decrypt_bytes(self, payload: bytes) -> bytes:
+        if self._fernet:
+            return self._fernet.decrypt(payload)
+        return base64.urlsafe_b64decode(payload)
+
+
+__all__ = ["CredentialStore", "EncryptionKey", "DataEncryptor", "SessionEncryptor"]

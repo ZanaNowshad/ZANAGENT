@@ -1,4 +1,5 @@
 """Cache management facade."""
+
 from __future__ import annotations
 
 import asyncio
@@ -23,7 +24,9 @@ class CacheManager:
     async def warm(self, items: dict[Hashable, Any]) -> None:
         async with self._lock:
             for key, value in items.items():
-                await self._cache.get_or_set(key, lambda value=value: asyncio.sleep(0, result=value))
+                await self._cache.get_or_set(
+                    key, lambda value=value: asyncio.sleep(0, result=value)
+                )
 
     async def invalidate(self, key: Hashable) -> None:
         await self._cache.invalidate(key)

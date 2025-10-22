@@ -6,6 +6,7 @@ operators a declarative way to customise provider credentials, security
 policies, and runtime limits. Internally the configuration is validated using
 Pydantic models to guarantee type safety throughout the codebase.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -98,7 +99,9 @@ class UnifiedConfigManager:
     """
 
     def __init__(self, config_path: Optional[Path] = None, *, poll_interval: float = 2.0) -> None:
-        self.config_path = config_path or Path(os.environ.get("VORTEX_CONFIG", "config/default.yml"))
+        self.config_path = config_path or Path(
+            os.environ.get("VORTEX_CONFIG", "config/default.yml")
+        )
         self.poll_interval = poll_interval
         self._settings: Optional[VortexSettings] = None
         self._callbacks: List[Callable[[VortexSettings], Awaitable[None]]] = []
@@ -141,7 +144,9 @@ class UnifiedConfigManager:
                         last_mtime = mtime
                         asyncio.run(self.reload())
                 except FileNotFoundError:
-                    logger.warning("configuration file missing", extra={"path": str(self.config_path)})
+                    logger.warning(
+                        "configuration file missing", extra={"path": str(self.config_path)}
+                    )
                 time.sleep(self.poll_interval)
 
         self._stop_event.clear()

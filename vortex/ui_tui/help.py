@@ -1,4 +1,5 @@
 """Help panel renderables."""
+
 from __future__ import annotations
 
 from rich.console import Group
@@ -37,6 +38,19 @@ OPERATIONS_COMMANDS = [
     ("/reload theme", "Reload theme files"),
     ("/quit", "Confirm exit and persist session"),
     ("/help", "Show this help overlay"),
+]
+
+COLLAB_COMMANDS = [
+    ("/session new [title]", "Start a new collaborative session"),
+    ("/session list", "List saved sessions and collaborators"),
+    ("/session join <id|token>", "Join or import a shared session"),
+    ("/session share [role]", "Generate a share token"),
+    ("/sync", "Push/pull session state immediately"),
+    ("/analytics", "Display session KPIs"),
+    ("/dashboard", "Open analytics dashboard"),
+    ("/reports", "Export metrics summary to the main panel"),
+    ("/compare <id1> <id2>", "Compare two sessions"),
+    ("/insights", "Generate narrative insights for the session"),
 ]
 
 
@@ -87,7 +101,13 @@ Use `/accessibility` or `--screen-reader` to enable narration. High-contrast pal
         """,
     )
 
-    content = Group(hotkeys, core, accessibility, operations, docs)
+    collaboration = Table(title="Collaboration & Analytics", show_edge=False, expand=True)
+    collaboration.add_column("Command")
+    collaboration.add_column("Description")
+    for command, description in COLLAB_COMMANDS:
+        collaboration.add_row(command, description)
+
+    content = Group(hotkeys, core, accessibility, operations, collaboration, docs)
     return Panel(content, title="Help & Shortcuts", border_style="cyan")
 
 

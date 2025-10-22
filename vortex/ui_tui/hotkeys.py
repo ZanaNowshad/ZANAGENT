@@ -1,8 +1,8 @@
 """Central definition of keyboard bindings."""
+
 from __future__ import annotations
 
 from textual.binding import Binding
-
 
 GLOBAL_HOTKEYS = [
     Binding("tab", "focus_next", "Next Panel"),
@@ -26,6 +26,10 @@ GLOBAL_HOTKEYS = [
     Binding("ctrl+comma", "settings_open", "Settings"),
     Binding("ctrl+t", "theme_reload", "Reload Theme"),
     Binding("ctrl+r", "history_search", "Search History"),
+    Binding("ctrl+d", "dashboard_open", "Dashboard"),
+    Binding("ctrl+a", "analytics_focus", "Analytics"),
+    Binding("ctrl+s", "sessions_focus", "Sessions"),
+    Binding("ctrl+y", "sync_now", "Sync"),
     Binding("ctrl+q", "quit_app", "Quit"),
 ]
 

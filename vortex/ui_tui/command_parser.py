@@ -1,4 +1,5 @@
 """Slash command parsing utilities."""
+
 from __future__ import annotations
 
 import shlex

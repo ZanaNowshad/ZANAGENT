@@ -1,7 +1,5 @@
 import pytest
 
-import pytest
-
 pytest.importorskip("textual")
 
 from vortex.ui_tui.accessibility import AccessibilityAnnouncer, AccessibilityPreferences

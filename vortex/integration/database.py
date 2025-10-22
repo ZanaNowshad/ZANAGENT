@@ -1,4 +1,5 @@
 """Async database management for integration workflows."""
+
 from __future__ import annotations
 
 import asyncio
@@ -75,7 +76,9 @@ class DatabaseManager:
             rows = [dict(row) for row in await cursor.fetchall()] if cursor.description else []
             return QueryResult(rows=rows, rowcount=cursor.rowcount)
 
-    async def fetch(self, sql: str, parameters: Iterable[Any] | None = None, *, use_cache: bool = False) -> QueryResult:
+    async def fetch(
+        self, sql: str, parameters: Iterable[Any] | None = None, *, use_cache: bool = False
+    ) -> QueryResult:
         """Execute a read-only query with optional caching."""
 
         async def _run_query() -> QueryResult:

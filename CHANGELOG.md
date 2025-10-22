@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
+## [1.0.3] - 2024-03-10
+### Added
+- feat: enabled multi-session collaboration, presence indicators, and encrypted share tokens across the TUI.
+- feat: introduced analytics dashboards, session comparison reports, and collaborative diagnostics commands.
+
+### Changed
+- ux: refreshed the layout with dedicated Sessions and Analytics panels plus dashboard hotkeys.
+
+### Security
+- security: enforced end-to-end encryption for shared transcripts and configurable LAN sync hosts.
+
+### Testing
+- test: added coverage for session manager events, analytics reporting, and dashboard renderables.
+
+### Documentation
+- docs: published a collaboration guide and expanded the TUI reference with analytics shortcuts and commands.
+
 ## [1.0.2] - 2024-03-09
 ### Added
 - feat: introduced command palette suggestions, colon command shortcuts, and rich progress spinners for long-running actions.

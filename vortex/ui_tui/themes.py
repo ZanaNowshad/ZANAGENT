@@ -1,4 +1,5 @@
 """Theme definitions and helpers for the TUI."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -40,9 +41,19 @@ Screen {
     background: #0b1220;
 }
 
+#sessions-panel {
+    border: round #f97316;
+    background: #1f2937;
+}
+
 #actions-panel {
     border: round #7c3aed;
     background: #141826;
+}
+
+#analytics-panel {
+    border: round #14b8a6;
+    background: #0f172a;
 }
 
 #status-panel {
@@ -78,9 +89,19 @@ Screen {
     background: #e0f2fe;
 }
 
+#sessions-panel {
+    border: round #f97316;
+    background: #fff7ed;
+}
+
 #actions-panel {
     border: round #7c3aed;
     background: #ede9fe;
+}
+
+#analytics-panel {
+    border: round #0f766e;
+    background: #ecfdf5;
 }
 
 #status-panel {
@@ -106,7 +127,7 @@ Screen {
     color: #ffffff;
 }
 
-#main-panel, #context-panel, #actions-panel, #status-panel, #tool-panel, #help-panel {
+#main-panel, #context-panel, #sessions-panel, #actions-panel, #analytics-panel, #status-panel, #tool-panel, #help-panel {
     border: round #ffffff;
     background: #000000;
 }
@@ -124,7 +145,7 @@ Screen {
     color: white;
 }
 
-#main-panel, #context-panel, #actions-panel, #status-panel, #tool-panel, #help-panel {
+#main-panel, #context-panel, #sessions-panel, #actions-panel, #analytics-panel, #status-panel, #tool-panel, #help-panel {
     border: round white;
     background: black;
 }
@@ -141,7 +162,9 @@ class ThemeError(RuntimeError):
     """Raised when a custom theme cannot be loaded."""
 
 
-def theme_css(mode: str, *, no_color: bool, high_contrast: bool = False, custom: Path | None = None) -> str:
+def theme_css(
+    mode: str, *, no_color: bool, high_contrast: bool = False, custom: Path | None = None
+) -> str:
     """Return CSS for the requested theme with fallbacks.
 
     ``mode`` accepts ``dark`` or ``light``; ``auto`` defaults to ``dark``. When
@@ -273,9 +296,7 @@ def _validate_contrast(css: str) -> None:
     if background and foreground:
         ratio = _contrast_ratio(background, foreground)
         if ratio < 4.5:  # WCAG AA threshold
-            raise ThemeError(
-                f"Theme contrast ratio {ratio:.2f} is below WCAG AA requirements"
-            )
+            raise ThemeError(f"Theme contrast ratio {ratio:.2f} is below WCAG AA requirements")
 
 
 def _extract_color(css: str, token: str) -> Optional[str]:

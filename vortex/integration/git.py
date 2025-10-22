@@ -1,4 +1,5 @@
 """Git integration helpers."""
+
 from __future__ import annotations
 
 import asyncio
@@ -43,13 +44,17 @@ class GitManager:
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await process.communicate()
-        result = GitCommandResult(returncode=process.returncode, stdout=stdout.decode(), stderr=stderr.decode())
+        result = GitCommandResult(
+            returncode=process.returncode, stdout=stdout.decode(), stderr=stderr.decode()
+        )
         if not result.success:
             logger.error("git command failed", extra={"args": list(args), "stderr": result.stderr})
             raise IntegrationError(result.stderr)
         return result
 
-    async def clone(self, repo: str, *, destination: Optional[Path] = None, depth: Optional[int] = None) -> GitCommandResult:
+    async def clone(
+        self, repo: str, *, destination: Optional[Path] = None, depth: Optional[int] = None
+    ) -> GitCommandResult:
         args: List[str] = ["clone", repo]
         if destination:
             args.append(str(destination))

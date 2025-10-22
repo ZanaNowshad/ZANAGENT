@@ -1,4 +1,5 @@
 """Advanced AI subsystems."""
+
 from __future__ import annotations
 
 from vortex.ai.code_intelligence import AdvancedCodeIntelligence

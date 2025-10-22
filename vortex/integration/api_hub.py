@@ -1,4 +1,5 @@
 """HTTP API orchestration utilities."""
+
 from __future__ import annotations
 
 import asyncio
@@ -112,13 +113,20 @@ class APIHub:
         async def _perform_request() -> Any:
             logger.debug(
                 "api call",
-                extra={"name": name, "endpoint": endpoint, "method": method, "use_cache": use_cache},
+                extra={
+                    "name": name,
+                    "endpoint": endpoint,
+                    "method": method,
+                    "use_cache": use_cache,
+                },
             )
             headers = dict(config.default_headers)
             if config.secret_name:
                 token = await self._security.retrieve_secret(config.secret_name)
                 headers.setdefault("Authorization", f"Bearer {token}")
-            response = await client.request(method, endpoint, params=params, json=json, headers=headers)
+            response = await client.request(
+                method, endpoint, params=params, json=json, headers=headers
+            )
             response.raise_for_status()
             try:
                 return response.json()

@@ -8,9 +8,11 @@ from vortex.education import CodeExplainer, LearningMode
 
 @pytest.fixture()
 def model_manager() -> UnifiedModelManager:
-    return UnifiedModelManager([
-        {"name": "echo", "type": "echo"},
-    ])
+    return UnifiedModelManager(
+        [
+            {"name": "echo", "type": "echo"},
+        ]
+    )
 
 
 @pytest.fixture()

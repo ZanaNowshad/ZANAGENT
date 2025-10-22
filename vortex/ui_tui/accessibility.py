@@ -79,7 +79,8 @@ class AccessibilityAnnouncer:
         if not self.enabled:
             return
         suffix = f": {detail}" if detail and self._preferences.verbosity != "minimal" else ""
-        await self.announce(f"Focus on {panel} panel{suffix}", severity="information")
+        panel_title = panel.title() if panel else ""
+        await self.announce(f"Focus on {panel_title} panel{suffix}", severity="information")
 
     async def announce_plain_text(self, summary: str) -> None:
         """Emit a summary of the latest diff/log for screen readers."""
@@ -96,15 +97,30 @@ class AccessibilityAnnouncer:
         if not self.enabled:
             return
         if percent is None or self._preferences.verbosity == "minimal":
-            message = f"{label} in progress"
+            message = f"{label.capitalize()} in progress"
         else:
-            message = f"{label} {percent}% complete"
+            message = f"{label.capitalize()} {percent}% complete"
         await self.announce(message, severity="information", dedupe=False)
 
     async def announce_error(self, message: str) -> None:
         """Emit high-priority error announcements."""
 
         await self.announce(message, severity="error", dedupe=False)
+
+    async def announce_collaboration(self, message: str) -> None:
+        """Announce collaboration updates such as joins or locks."""
+
+        if not self.enabled:
+            return
+        prefix = "Collaboration"
+        await self.announce(f"{prefix}: {message}", severity="information", dedupe=False)
+
+    async def announce_insight(self, message: str) -> None:
+        """Announce analytics insight summaries."""
+
+        if not self.enabled:
+            return
+        await self.announce(f"Insight: {message}", severity="information", dedupe=False)
 
 
 class AccessibilityToggle(Message):

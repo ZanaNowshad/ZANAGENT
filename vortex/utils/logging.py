@@ -5,6 +5,7 @@ emits JSON logs by default while still supporting colourful Rich output on the
 console. The goal is to make log aggregation trivial in production while keeping
 local developer ergonomics high.
 """
+
 from __future__ import annotations
 
 import json

@@ -1,4 +1,5 @@
 """User interface adapters."""
+
 from __future__ import annotations
 
 from vortex.ui.desktop import DesktopGUI

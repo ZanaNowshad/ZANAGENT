@@ -1,4 +1,5 @@
 """Workflow engine for orchestrating tasks."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -29,10 +30,14 @@ class WorkflowEngine:
         self._monitor = monitor
         self._steps: Dict[str, WorkflowStep] = {}
 
-    def register(self, name: str, action: WorkflowFunc, *, depends_on: Optional[Iterable[str]] = None) -> None:
+    def register(
+        self, name: str, action: WorkflowFunc, *, depends_on: Optional[Iterable[str]] = None
+    ) -> None:
         if name in self._steps:
             raise WorkflowError(f"Workflow step {name} already registered")
-        self._steps[name] = WorkflowStep(name=name, action=action, depends_on=list(depends_on or []))
+        self._steps[name] = WorkflowStep(
+            name=name, action=action, depends_on=list(depends_on or [])
+        )
 
     async def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Execute the workflow, returning the combined payload."""

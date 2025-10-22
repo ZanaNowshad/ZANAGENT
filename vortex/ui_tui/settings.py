@@ -1,4 +1,5 @@
 """Settings management and setup flows for the Vortex TUI."""
+
 from __future__ import annotations
 
 import asyncio
@@ -100,7 +101,9 @@ class SettingsChanged(Message):
 class TUISettingsManager:
     """Load and persist Textual-specific settings."""
 
-    def __init__(self, *, global_path: Optional[Path] = None, local_path: Optional[Path] = None) -> None:
+    def __init__(
+        self, *, global_path: Optional[Path] = None, local_path: Optional[Path] = None
+    ) -> None:
         self.global_path = global_path or Path.home() / ".vortex" / "config.toml"
         self.local_path = local_path or Path.cwd() / ".agentrc"
         self._settings: Optional[TUISettings] = None
@@ -200,7 +203,9 @@ class _BaseSettingsScreen(ModalScreen[Optional[TUISettings]]):
     def __init__(self, defaults: TUISettings) -> None:
         super().__init__()
         self.defaults = defaults
-        self._future: asyncio.Future[Optional[TUISettings]] = asyncio.get_running_loop().create_future()
+        self._future: asyncio.Future[Optional[TUISettings]] = (
+            asyncio.get_running_loop().create_future()
+        )
 
     async def wait(self) -> Optional[TUISettings]:
         return await self._future
@@ -607,13 +612,15 @@ def _dump_toml(payload: Dict[str, Any]) -> str:
     for table, values in tables.items():
         lines.append("")
         lines.append(f"[{table}]")
-        for key, value in values.items():
-            if isinstance(value, dict):
-                lines.append(f"[{table}.{key}]")
-                for nested_key, nested_value in value.items():
-                    lines.append(f"{nested_key} = {render(nested_value)}")
-            else:
-                lines.append(f"{key} = {render(value)}")
+        simple_items = [(k, v) for k, v in values.items() if not isinstance(v, dict)]
+        nested_items = [(k, v) for k, v in values.items() if isinstance(v, dict)]
+        for key, value in simple_items:
+            lines.append(f"{key} = {render(value)}")
+        for key, value in nested_items:
+            lines.append("")
+            lines.append(f"[{table}.{key}]")
+            for nested_key, nested_value in value.items():
+                lines.append(f"{nested_key} = {render(nested_value)}")
     return "\n".join(lines) + "\n"
 
 

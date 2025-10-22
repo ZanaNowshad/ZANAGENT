@@ -1,4 +1,5 @@
 """Natural language processing helpers."""
+
 from __future__ import annotations
 
 import re
@@ -35,7 +36,9 @@ class NLPEngine:
         positive = {"good", "great", "excellent", "happy", "love"}
         negative = {"bad", "terrible", "sad", "hate", "poor"}
         tokens = self.tokenize(text)
-        score = sum(1 for token in tokens if token in positive) - sum(1 for token in tokens if token in negative)
+        score = sum(1 for token in tokens if token in positive) - sum(
+            1 for token in tokens if token in negative
+        )
         normalised = score / max(len(tokens), 1)
         logger.debug("sentiment score", extra={"score": normalised})
         return normalised

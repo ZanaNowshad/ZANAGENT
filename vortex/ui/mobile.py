@@ -1,4 +1,5 @@
 """Mobile-facing API adapter."""
+
 from __future__ import annotations
 
 import json

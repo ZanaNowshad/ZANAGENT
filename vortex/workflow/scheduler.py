@@ -1,4 +1,5 @@
 """Workflow scheduler."""
+
 from __future__ import annotations
 
 import asyncio
@@ -29,9 +30,13 @@ class WorkflowScheduler:
         self._runner: asyncio.Task[None] | None = None
         self._stop_event = asyncio.Event()
 
-    async def schedule(self, name: str, delay: float, callback: Callable[[], Awaitable[None]]) -> None:
+    async def schedule(
+        self, name: str, delay: float, callback: Callable[[], Awaitable[None]]
+    ) -> None:
         async with self._lock:
-            heapq.heappush(self._jobs, ScheduledJob(run_at=time.time() + delay, name=name, callback=callback))
+            heapq.heappush(
+                self._jobs, ScheduledJob(run_at=time.time() + delay, name=name, callback=callback)
+            )
             if self._runner is None:
                 self._runner = asyncio.create_task(self._run())
             self._stop_event.set()

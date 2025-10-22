@@ -1,4 +1,5 @@
 """Provider cost tracking."""
+
 from __future__ import annotations
 
 import asyncio
@@ -36,7 +37,9 @@ class CostTracker:
                 )
                 for name, metrics in usage.items()
             }
-            logger.debug("cost snapshot", extra={"snapshot": {k: v.cost for k, v in snapshot.items()}})
+            logger.debug(
+                "cost snapshot", extra={"snapshot": {k: v.cost for k, v in snapshot.items()}}
+            )
             return snapshot
 
     async def total_cost(self) -> float:

@@ -1,4 +1,5 @@
 """Task planning and execution engine."""
+
 from __future__ import annotations
 
 import asyncio
@@ -54,7 +55,9 @@ class UnifiedAdvancedPlanner:
 
     async def execute(self) -> List[TaskResult]:
         order = self.plan()
-        pending_dependencies: Dict[str, Set[str]] = {name: set(self._tasks[name].depends_on) for name in order}
+        pending_dependencies: Dict[str, Set[str]] = {
+            name: set(self._tasks[name].depends_on) for name in order
+        }
         completed: Dict[str, TaskResult] = {}
         in_progress: Set[str] = set()
         semaphore = asyncio.Semaphore(self.max_parallel_tasks)
@@ -78,10 +81,14 @@ class UnifiedAdvancedPlanner:
                                 res = TaskResult(name=name, success=False, error=exc)
                                 completed[name] = res
                                 results.append(res)
-                                logger.exception("task failed", extra={"task": name, "error": str(exc)})
+                                logger.exception(
+                                    "task failed", extra={"task": name, "error": str(exc)}
+                                )
                                 break
                             await asyncio.sleep(0.1 * attempt)
-                            logger.warning("retrying task", extra={"task": name, "attempt": attempt})
+                            logger.warning(
+                                "retrying task", extra={"task": name, "attempt": attempt}
+                            )
 
         async def scheduler() -> None:
             queue: asyncio.Queue[str] = asyncio.Queue()

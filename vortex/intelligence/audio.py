@@ -1,4 +1,5 @@
 """Audio processing utilities."""
+
 from __future__ import annotations
 
 import wave

@@ -9,7 +9,14 @@ pytest.importorskip("textual")
 
 from vortex.ui_tui.layout import build_layout
 from vortex.ui_tui.palette import PaletteEntry
-from vortex.ui_tui.panels import CommandBar, ContextPanel, MainPanel, TelemetryBar
+from vortex.ui_tui.panels import (
+    AnalyticsPanel,
+    CommandBar,
+    ContextPanel,
+    MainPanel,
+    SessionsPanel,
+    TelemetryBar,
+)
 from vortex.ui_tui.settings import TUISettingsManager
 
 
@@ -68,6 +75,27 @@ def test_telemetry_bar_defaults() -> None:
     bar = TelemetryBar()
     assert bar.cpu_usage == 0.0
     assert "CPU" in bar.render().plain
+
+
+def test_sessions_and_analytics_panels() -> None:
+    sessions = SessionsPanel()
+    list(sessions.compose())
+    sessions.update_sessions(
+        {
+            "alice@host": {
+                "user": "alice",
+                "host": "host",
+                "role": "owner",
+                "read_only": False,
+                "last_seen": 0.0,
+            }
+        },
+        lock_holder=None,
+        checkpoints=[{"identifier": "cp-001", "summary": "init"}],
+    )
+    analytics = AnalyticsPanel()
+    list(analytics.compose())
+    analytics.update_summary({"kpis": {}, "events": [], "success_rate": 0.0}, [])
 
 
 @pytest.mark.asyncio
