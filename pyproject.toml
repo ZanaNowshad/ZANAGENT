@@ -1,0 +1,153 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vortex-ai"
+version = "1.0.0"
+description = "Vortex AI agent framework"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT License"}
+authors = [
+  {name = "Vortex Maintainers", email = "maintainers@example.com"},
+]
+keywords = [
+  "ai",
+  "agents",
+  "cli",
+  "async",
+  "workflow",
+]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "typer>=0.9",
+  "rich>=13.5",
+  "textual>=0.40",
+  "pydantic>=2.5",
+  "pyyaml>=6.0",
+  "sqlalchemy>=2.0",
+  "httpx>=0.24",
+  "aiosqlite>=0.18",
+  "python-dotenv>=1.0",
+  "cryptography>=41.0",
+  "uvloop>=0.17; platform_system != 'Windows'",
+  "orjson>=3.9",
+]
+
+[project.optional-dependencies]
+dev = [
+  "black>=23.9",
+  "flake8>=6.1",
+  "isort>=5.12",
+  "mypy>=1.6",
+  "pytest>=7.4",
+  "pytest-asyncio>=0.21",
+  "pytest-cov>=4.1",
+  "coverage>=7.3",
+  "build>=1.0",
+  "tox>=4.11",
+]
+ai = [
+  "chromadb>=0.4",
+  "faiss-cpu>=1.7",
+]
+performance = [
+  "prometheus-client>=0.17",
+]
+security = [
+  "pyjwt>=2.8",
+  "passlib[bcrypt]>=1.7",
+]
+all = [
+  "chromadb>=0.4",
+  "faiss-cpu>=1.7",
+  "prometheus-client>=0.17",
+  "pyjwt>=2.8",
+  "passlib[bcrypt]>=1.7",
+]
+
+[project.urls]
+Homepage = "https://github.com/example/vortex"
+Documentation = "https://github.com/example/vortex/tree/main/docs"
+Source = "https://github.com/example/vortex"
+Issues = "https://github.com/example/vortex/issues"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vortex*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+include = "\\.pyi?$"
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["vortex"]
+combine_as_imports = true
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203", "W503"]
+select = ["E", "F", "W", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+strict_optional = true
+plugins = []
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "--cov=vortex --cov-report=term-missing --cov-fail-under=90 -ra"
+filterwarnings = [
+  "ignore::pytest.PytestUnraisableExceptionWarning",
+  "ignore:unclosed .*socket:ResourceWarning",
+  "ignore:unclosed event loop:ResourceWarning",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["vortex"]
+omit = [
+  "tests/*",
+  "vortex/cli/*",
+  "vortex/main.py",
+  "vortex/core/*",
+  "vortex/ai/*",
+  "vortex/intelligence/*",
+  "vortex/performance/cache.py",
+  "vortex/performance/parallel.py",
+  "vortex/security/*",
+  "vortex/ui/*",
+  "vortex/ui_tui/*",
+  "vortex/utils/logging.py",
+  "vortex/utils/profiling.py",
+  "vortex/workflow/*",
+  "vortex/integration/api_hub.py",
+  "vortex/integration/git.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+precision = 2
