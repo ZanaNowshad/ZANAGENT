@@ -27,7 +27,8 @@ GLOBAL_HOTKEYS = [
     Binding("ctrl+t", "theme_reload", "Reload Theme"),
     Binding("ctrl+shift+r", "history_search", "Search History"),
     Binding("ctrl+d", "dashboard_open", "Dashboard"),
-    Binding("ctrl+a", "analytics_focus", "Analytics"),
+    Binding("ctrl+shift+a", "analytics_focus", "Analytics"),
+    Binding("ctrl+a", "alerts_focus", "Alerts"),
     Binding("ctrl+s", "sessions_focus", "Sessions"),
     Binding("ctrl+y", "sync_now", "Sync"),
     Binding("ctrl+q", "quit_app", "Quit"),
@@ -37,6 +38,8 @@ GLOBAL_HOTKEYS = [
     Binding("ctrl+p", "project_dashboard", "Project"),
     Binding("ctrl+r", "pipeline_run_hotkey", "Run Pipeline"),
     Binding("ctrl+shift+l", "pipeline_logs_hotkey", "Pipeline Logs"),
+    Binding("ctrl+o", "org_focus", "Org Center"),
+    Binding("ctrl+g", "graph_focus", "Graph"),
 ]
 
 

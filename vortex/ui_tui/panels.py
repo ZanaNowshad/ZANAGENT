@@ -28,6 +28,7 @@ from .analytics_panel import analytics_dashboard, sessions_table
 from .help import help_renderable
 from .palette import PaletteEntry
 from .settings import TUISettings
+from vortex.org.ops_center import OpsSnapshot
 
 
 class VortexPanel(Static):
@@ -131,6 +132,37 @@ class HelpPanel(VortexPanel):
     def compose(self) -> ComposeResult:
         yield Static(help_renderable(), id="help-content")
 
+
+class OrgCenterPanel(VortexPanel):
+    """Panel showing organisation-wide metrics and alerts."""
+
+    def compose(self) -> ComposeResult:
+        self._summary = Static("Org metrics loading…", id="org-summary")
+        self._alerts = RichLog(id="org-alerts", highlight=True)
+        wrapper = Vertical(
+            Label("Knowledge Graph & Ops", id="org-title"),
+            self._summary,
+            Label("Active Alerts", id="org-alerts-title"),
+            self._alerts,
+        )
+        yield wrapper
+
+    def update_snapshot(self, snapshot: OpsSnapshot) -> None:
+        table = Table(show_header=False, box=None)
+        table.add_column("Metric")
+        table.add_column("Value")
+        table.add_row("Nodes", str(snapshot.nodes))
+        table.add_row("Pipelines", str(snapshot.pipelines))
+        table.add_row("Incidents", str(snapshot.incidents))
+        table.add_row("Latency", f"{snapshot.avg_latency_ms:.2f} ms")
+        table.add_row("Token Cost", f"${snapshot.token_cost:.2f}")
+        self._summary.update(table)
+        self._alerts.clear()
+        if not snapshot.alerts:
+            self._alerts.write("No active alerts")
+        else:
+            for alert in snapshot.alerts:
+                self._alerts.write(f"[{alert.level}] {alert.message}")
 
 class CommandBar(Container):
     """Bottom command input used for slash commands and palette."""
@@ -389,6 +421,7 @@ class RootLayout(Container):
                 yield ContextPanel(self._root_path)
                 yield SessionsPanel(id="sessions-panel")
                 yield TeamPanel(id="team-panel")
+                yield OrgCenterPanel(id="org-panel")
                 yield AnalyticsPanel(id="analytics-panel")
                 yield ProjectDashboardPanel(id="project-panel")
                 yield ActionsPanel(id="actions-panel")
@@ -410,6 +443,7 @@ __all__ = [
     "SessionsPanel",
     "TeamPanel",
     "AnalyticsPanel",
+    "OrgCenterPanel",
     "ProjectDashboardPanel",
     "StatusPanel",
     "TelemetryBar",

@@ -66,6 +66,18 @@ PROJECT_COMMANDS = [
     ("/broadcast <message>", "Send message to team"),
 ]
 
+ORG_COMMANDS = [
+    ("/org analytics", "Organisation-wide KPIs"),
+    ("/org report", "Generate summary report"),
+    ("/org serve", "Expose metrics API"),
+    ("/ops", "Show operations dashboard"),
+    ("/ops alerts", "List live alerts"),
+    ("/graph view", "Render knowledge graph summary"),
+    ("/graph find <expr>", "Search graph entities"),
+    ("/policy list", "List governance policies"),
+    ("/policy evaluate", "Evaluate policies for context"),
+]
+
 
 def help_renderable() -> Panel:
     """Return a combined help renderable with hotkeys and commands."""
@@ -126,7 +138,13 @@ Use `/accessibility` or `--screen-reader` to enable narration. High-contrast pal
     for command, description in PROJECT_COMMANDS:
         project.add_row(command, description)
 
-    content = Group(hotkeys, core, accessibility, operations, collaboration, project, docs)
+    org = Table(title="Org & Ops", show_edge=False, expand=True)
+    org.add_column("Command")
+    org.add_column("Description")
+    for command, description in ORG_COMMANDS:
+        org.add_row(command, description)
+
+    content = Group(hotkeys, core, accessibility, operations, collaboration, project, org, docs)
     return Panel(content, title="Help & Shortcuts", border_style="cyan")
 
 

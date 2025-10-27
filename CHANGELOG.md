@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
+## [1.0.5] - 2024-03-15
+### Added
+- feat: introduced organisation knowledge graph, ops centre, and policy engine with CLI and TUI integrations.
+- feat: exposed Org Centre panel, alerts hotkeys, and knowledge graph commands inside the TUI.
+- docs: published org knowledge graph and AI Ops centre guides plus expanded TUI reference.
+
+### Changed
+- ux: refreshed help overlay and shortcut map to cover org/ops workflows while coalescing alerts rendering.
+
+### Testing
+- test: added coverage for knowledge graph queries, policy evaluation, and ops aggregation snapshots.
+
 ## [1.0.4] - 2024-03-12
 ### Added
 - feat: introduced project orchestration modules (project manager, pipeline manager, roadmap planner) with CLI and TUI integration.

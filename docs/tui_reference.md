@@ -40,6 +40,7 @@ Invoke the wizard again at any time via `/settings` or `Ctrl+,`.
 | Context      | Repository tree and relevant snippets                          |
 | Sessions     | Presence indicators, locks, and checkpoint summaries           |
 | Actions      | High-value buttons with hotkey hints                           |
+| Org Center   | Org-level metrics, alerts, and knowledge graph summary         |
 | Analytics    | Session KPIs, charts, and narrative insights                   |
 | Status       | Branch, checkpoints, budgets, model, CPU/memory, tests         |
 | Tools (T)    | Discoverable plugin/tool registry                              |
@@ -90,6 +91,12 @@ commands include:
 | `/reports` | Export metrics as JSON for downstream automation |
 | `/compare <id1> <id2>` | Compare KPIs across two sessions |
 | `/insights` | Generate narrative insights from the transcript metrics |
+| `/org analytics` | Display organisation-wide KPIs |
+| `/org report` | Summarise health, graph, and policy counts |
+| `/ops alerts` | Stream active alerts into the main panel |
+| `/graph view` | Render a knowledge graph snapshot |
+| `/policy list` | List loaded policy files |
+| `/policy evaluate --coverage 0.9` | Evaluate governance rules for current context |
 | `/quit` | Confirm exit and persist session |
 | `/help` | Toggle the help overlay |
 
@@ -111,6 +118,16 @@ panel surfaces KPIs and `/dashboard` renders a Rich chart overview for ongoing
 work. All metrics land in an SQLite store so `/reports` and `/compare` remain
 fast, even across large transcripts.
 
+## Org Centre & Ops
+
+The Org Center panel aggregates metrics from every connected node. Use
+`Ctrl+O` to focus the panel and `Ctrl+A` to jump directly to the alert feed.
+`Ctrl+G` renders a knowledge-graph snapshot in the main panel. `/org analytics`
+and `/org report` summarise KPIs across projects while `/ops alerts` streams
+incident data. Policies under `~/.vortex/org/policies` can be listed and
+evaluated in-session via `/policy list` and `/policy evaluate` to ensure releases
+stay within governance constraints.
+
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
@@ -128,10 +145,13 @@ fast, even across large transcripts.
 | `Ctrl+T` | Reload the active theme (`/reload theme`) |
 | `Ctrl+R` | Show recent command history |
 | `Ctrl+D` | Open analytics dashboard |
-| `Ctrl+A` | Focus analytics panel |
+| `Ctrl+Shift+A` | Focus analytics panel |
+| `Ctrl+A` | Focus alerts and render Ops Centre alerts |
 | `Ctrl+S` | Focus sessions panel |
 | `Ctrl+Y` | Manual session sync |
 | `Ctrl+Q` | Prompt to quit |
+| `Ctrl+O` | Focus Org Centre panel |
+| `Ctrl+G` | Render knowledge graph snapshot |
 | `j`/`k` | Navigate list items |
 | `g`/`G` | Jump to top/bottom |
 | `h`/`l` | Navigate diff hunks |

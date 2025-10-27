@@ -32,7 +32,14 @@ from vortex.performance import (
     PerformanceAnalytics,
     PerformanceMonitor,
 )
-from vortex.performance.analytics import TeamAnalyticsStore
+from vortex.performance.analytics import (
+    OrgAnalyticsEngine,
+    SessionAnalyticsStore,
+    TeamAnalyticsStore,
+)
+from vortex.org import OrgKnowledgeGraph, OrgOpsCenter, OrgPolicyEngine
+from vortex.org.api import OrgOpsAPIServer
+from vortex.org.query import GraphQueryService
 from vortex.security.manager import UnifiedSecurityManager
 from vortex.ui import DesktopGUI, MobileAPI, RichUIBridge, WebUI
 from vortex.utils.logging import configure_logging, get_logger
@@ -83,6 +90,13 @@ async def _initialise_runtime() -> None:
     perf_monitor = PerformanceMonitor()
     perf_analytics = PerformanceAnalytics(perf_monitor)
     team_analytics = TeamAnalyticsStore()
+    session_analytics = SessionAnalyticsStore()
+    knowledge_graph = OrgKnowledgeGraph()
+    policy_engine = OrgPolicyEngine()
+    org_analytics = OrgAnalyticsEngine(session_analytics, team_analytics)
+    ops_center = OrgOpsCenter(perf_analytics, team_analytics, knowledge_graph)
+    graph_service = GraphQueryService(knowledge_graph, ai_nlp)
+    org_api = OrgOpsAPIServer(knowledge_graph, ops_center, policy_engine)
     cost_tracker = CostTracker(model_manager)
     cache_manager = CacheManager()
     connection_pool = ConnectionPool()
@@ -164,6 +178,14 @@ async def _initialise_runtime() -> None:
         project_manager=project_manager,
         pipeline_manager=pipeline_manager,
         roadmap_planner=roadmap_planner,
+        team_analytics=team_analytics,
+        session_analytics=session_analytics,
+        knowledge_graph=knowledge_graph,
+        graph_service=graph_service,
+        policy_engine=policy_engine,
+        ops_center=ops_center,
+        org_analytics=org_analytics,
+        org_api=org_api,
     )
     set_runtime(context)
     config_manager.start_watching()

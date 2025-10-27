@@ -319,6 +319,39 @@ class TeamAnalyticsStore:
             )
         return insights
 
+    async def snapshot_all(self) -> Dict[str, Any]:
+        rows = await self._fetch(
+            """
+            SELECT team_id, SUM(tokens), SUM(minutes), SUM(cost), COUNT(DISTINCT actor)
+            FROM team_entries GROUP BY team_id
+            """,
+            tuple(),
+        )
+        teams = []
+        total_tokens = 0.0
+        total_minutes = 0.0
+        total_cost = 0.0
+        for team_id, tokens, minutes, cost, actors in rows:
+            info = {
+                "team_id": team_id,
+                "tokens": float(tokens or 0.0),
+                "minutes": float(minutes or 0.0),
+                "cost": float(cost or 0.0),
+                "actors": int(actors or 0),
+            }
+            total_tokens += info["tokens"]
+            total_minutes += info["minutes"]
+            total_cost += info["cost"]
+            teams.append(info)
+        return {
+            "teams": teams,
+            "totals": {
+                "tokens": total_tokens,
+                "minutes": total_minutes,
+                "cost": total_cost,
+            },
+        }
+
     async def aggregate_by_event(self, team_id: str) -> Dict[str, Dict[str, float]]:
         rows = await self._fetch(
             """
@@ -386,5 +419,98 @@ class TeamAnalyticsStore:
             conn.close()
 
 
-__all__ = ["PerformanceAnalytics", "SessionAnalyticsStore", "TeamAnalyticsStore"]
+class OrgAnalyticsSnapshot:
+    """Summary of metrics spanning all teams and projects."""
+
+    def __init__(
+        self,
+        *,
+        teams: int,
+        sessions: int,
+        token_cost: float,
+        minutes: float,
+        alerts: int,
+    ) -> None:
+        self.teams = teams
+        self.sessions = sessions
+        self.token_cost = token_cost
+        self.minutes = minutes
+        self.alerts = alerts
+
+    def to_dict(self) -> Dict[str, float]:
+        return {
+            "teams": float(self.teams),
+            "sessions": float(self.sessions),
+            "token_cost": float(self.token_cost),
+            "minutes": float(self.minutes),
+            "alerts": float(self.alerts),
+        }
+
+
+class OrgAnalyticsEngine:
+    """Aggregate metrics across session and team stores."""
+
+    def __init__(
+        self,
+        session_store: SessionAnalyticsStore,
+        team_store: TeamAnalyticsStore,
+    ) -> None:
+        self._session_store = session_store
+        self._team_store = team_store
+
+    async def snapshot(self) -> OrgAnalyticsSnapshot:
+        sessions = await asyncio.to_thread(self._count_sessions)
+        teams = await asyncio.to_thread(self._count_teams)
+        token_cost = await asyncio.to_thread(self._total, "cost")
+        minutes = await asyncio.to_thread(self._total, "minutes")
+        alerts = 0  # alerts aggregated via ops centre; included for interface parity
+        return OrgAnalyticsSnapshot(
+            teams=teams,
+            sessions=sessions,
+            token_cost=token_cost,
+            minutes=minutes,
+            alerts=alerts,
+        )
+
+    def _count_sessions(self) -> int:
+        conn = sqlite3.connect(self._session_store._db_path)
+        try:
+            cursor = conn.execute("SELECT COUNT(*) FROM sessions")
+            value = cursor.fetchone()[0] or 0
+            conn.commit()
+            return int(value)
+        finally:
+            conn.close()
+
+    def _count_teams(self) -> int:
+        conn = sqlite3.connect(self._team_store._db_path)
+        try:
+            cursor = conn.execute("SELECT COUNT(DISTINCT team_id) FROM team_entries")
+            value = cursor.fetchone()[0] or 0
+            conn.commit()
+            return int(value)
+        finally:
+            conn.close()
+
+    def _total(self, field: str) -> float:
+        if field not in {"cost", "minutes"}:
+            raise ValueError("unsupported field")
+        column = "SUM(cost)" if field == "cost" else "SUM(minutes)"
+        conn = sqlite3.connect(self._team_store._db_path)
+        try:
+            cursor = conn.execute(f"SELECT {column} FROM team_entries")
+            value = cursor.fetchone()[0] or 0.0
+            conn.commit()
+            return float(value or 0.0)
+        finally:
+            conn.close()
+
+
+__all__ = [
+    "PerformanceAnalytics",
+    "SessionAnalyticsStore",
+    "TeamAnalyticsStore",
+    "OrgAnalyticsEngine",
+    "OrgAnalyticsSnapshot",
+]
 

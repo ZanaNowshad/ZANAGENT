@@ -38,11 +38,20 @@ from vortex.performance import (
     PerformanceAnalytics,
     PerformanceMonitor,
 )
+from vortex.performance.analytics import (
+    OrgAnalyticsEngine,
+    SessionAnalyticsStore,
+    TeamAnalyticsStore,
+)
 from vortex.security.manager import UnifiedSecurityManager
 from vortex.ui import DesktopGUI, MobileAPI, RichUIBridge, WebUI
 from vortex.utils.errors import MemoryError, ProviderError, SecurityError, WorkflowError
 from vortex.utils.logging import configure_logging, get_logger
 from vortex.workflow import MacroSystem, WorkflowEngine, WorkflowScheduler
+from vortex.org import OrgKnowledgeGraph, OrgOpsCenter, OrgPolicyEngine
+from vortex.org.api import OrgOpsAPIServer
+from vortex.org.query import GraphQueryService
+from vortex.org.relations import EntityType
 
 logger = get_logger(__name__)
 
@@ -62,6 +71,10 @@ pipeline_cli = typer.Typer(help="CI/CD pipelines")
 release_app = typer.Typer(help="Release orchestration")
 govern_app = typer.Typer(help="Governance and compliance")
 agent_app = typer.Typer(help="Team agent coordination")
+org_app = typer.Typer(help="Organisation level operations")
+ops_app = typer.Typer(help="Operations telemetry")
+graph_app = typer.Typer(help="Knowledge graph queries")
+policy_app = typer.Typer(help="Policy governance")
 app.add_typer(plugin_app, name="plugin")
 app.add_typer(config_app, name="config")
 app.add_typer(memory_app, name="memory")
@@ -77,6 +90,10 @@ app.add_typer(pipeline_cli, name="pipeline")
 app.add_typer(release_app, name="release")
 app.add_typer(govern_app, name="govern")
 app.add_typer(agent_app, name="agent")
+app.add_typer(org_app, name="org")
+app.add_typer(ops_app, name="ops")
+app.add_typer(graph_app, name="graph")
+app.add_typer(policy_app, name="policy")
 
 
 @dataclass
@@ -128,6 +145,14 @@ class RuntimeContext:
     project_manager: ProjectManager
     pipeline_manager: PipelineManager
     roadmap_planner: RoadmapPlanner
+    team_analytics: TeamAnalyticsStore
+    session_analytics: SessionAnalyticsStore
+    knowledge_graph: OrgKnowledgeGraph
+    graph_service: GraphQueryService
+    policy_engine: OrgPolicyEngine
+    ops_center: OrgOpsCenter
+    org_analytics: OrgAnalyticsEngine
+    org_api: OrgOpsAPIServer | None
 
 
 runtime: Optional[RuntimeContext] = None
@@ -277,6 +302,132 @@ def agent_list() -> None:
 
     asyncio.run(_run())
 
+
+@org_app.command("analytics")
+def org_analytics(period: int = typer.Option(30, "--period", help="Reporting window in days")) -> None:
+    ctx = _require_runtime()
+
+    async def _run() -> None:
+        snapshot = await ctx.org_analytics.snapshot()
+        table = ctx.ui.table(
+            "Org Analytics",
+            ["Metric", "Value"],
+            [
+                ["Teams", str(snapshot.teams)],
+                ["Sessions", str(snapshot.sessions)],
+                ["Token Cost", f"${snapshot.token_cost:.2f}"],
+                ["Minutes", f"{snapshot.minutes:.1f}"],
+                ["Alerts", str(snapshot.alerts)],
+            ],
+        )
+        ctx.ui.console.print(table)
+
+    asyncio.run(_run())
+
+
+@org_app.command("report")
+def org_report(period: int = typer.Option(30, "--period", help="Reporting window")) -> None:
+    ctx = _require_runtime()
+    health = ctx.ops_center.broadcast_health()
+    graph = ctx.knowledge_graph.export_graph()
+    payload = {
+        "period_days": period,
+        "health": health,
+        "graph_entities": len(graph.get("entities", [])),
+        "policies": len(ctx.policy_engine.list_policies()),
+    }
+    ctx.ui.console.print(payload)
+
+
+@org_app.command("serve")
+def org_serve(
+    host: str = typer.Option("127.0.0.1", "--host"),
+    port: int = typer.Option(8088, "--port"),
+) -> None:
+    ctx = _require_runtime()
+
+    server = OrgOpsAPIServer(ctx.knowledge_graph, ctx.ops_center, ctx.policy_engine, host=host, port=port)
+    ctx.org_api = server
+
+    async def _run() -> None:
+        await server.start()
+        ctx.ui.info(f"Org API token: {server.token}")
+        try:
+            while True:
+                await asyncio.sleep(1)
+        except asyncio.CancelledError:  # pragma: no cover - graceful shutdown
+            pass
+
+    try:
+        asyncio.run(_run())
+    except KeyboardInterrupt:
+        ctx.ui.info("Stopping Org API server")
+        asyncio.run(server.stop())
+
+
+@ops_app.command("status")
+def ops_status() -> None:
+    ctx = _require_runtime()
+    snapshot = ctx.ops_center.aggregate()
+    ctx.ui.console.print(snapshot.to_table())
+
+
+@ops_app.command("alerts")
+def ops_alerts() -> None:
+    ctx = _require_runtime()
+    ctx.ui.console.print(ctx.ops_center.alerts_table())
+
+
+@graph_app.command("ask")
+def graph_ask(question: str) -> None:
+    ctx = _require_runtime()
+    result = ctx.graph_service.query(question)
+    ctx.ui.console.print(result.to_dict())
+
+
+@graph_app.command("find")
+def graph_find(entity_type: str, term: str = typer.Option(None, "--term")) -> None:
+    ctx = _require_runtime()
+    try:
+        etype = EntityType(entity_type)
+    except ValueError as exc:  # pragma: no cover - user input validation
+        raise typer.BadParameter(str(exc)) from exc
+    entities = ctx.knowledge_graph.find_entities(etype, term)
+    ctx.ui.console.print([entity.to_dict() for entity in entities])
+
+
+@policy_app.command("list")
+def policy_list() -> None:
+    ctx = _require_runtime()
+    ctx.ui.console.print(ctx.policy_engine.list_policies())
+
+
+@policy_app.command("reload")
+def policy_reload() -> None:
+    ctx = _require_runtime()
+    ctx.policy_engine.reload()
+    ctx.ui.info("Policies reloaded")
+
+
+@policy_app.command("evaluate")
+def policy_evaluate(
+    coverage: float = typer.Option(1.0, "--coverage"),
+    models: List[str] = typer.Option([], "--model"),
+    roles: List[str] = typer.Option([], "--role"),
+    licenses: List[str] = typer.Option([], "--license"),
+) -> None:
+    ctx = _require_runtime()
+    context = {
+        "coverage": coverage,
+        "models": models,
+        "roles": roles,
+        "licenses": licenses,
+    }
+    violations = ctx.policy_engine.evaluate(context)
+    if violations:
+        ctx.ui.console.print([violation.to_dict() for violation in violations])
+    else:
+        ctx.ui.info("No policy violations detected")
 
 @project_app.command("init")
 def project_init(

@@ -20,6 +20,7 @@ from vortex.utils.logging import get_logger
 from vortex.utils.profiling import profile
 
 from vortex.performance.analytics import SessionAnalyticsStore
+from vortex.org.ops_center import OpsSnapshot
 
 from .actions import CommandResult, TUIActionCenter
 from .accessibility import (
@@ -39,6 +40,7 @@ from .panels import (
     AnalyticsPanel,
     CommandBar,
     MainPanel,
+    OrgCenterPanel,
     ProjectDashboardPanel,
     SessionsPanel,
     StatusPanel,
@@ -161,6 +163,7 @@ class VortexTUI(App[None]):
             "context-panel",
             "sessions-panel",
             "team-panel",
+            "org-panel",
             "actions-panel",
             "analytics-panel",
             "project-panel",
@@ -176,6 +179,7 @@ class VortexTUI(App[None]):
         self._sessions_panel: Optional[SessionsPanel] = None
         self._analytics_panel: Optional[AnalyticsPanel] = None
         self._team_panel: Optional[TeamPanel] = None
+        self._org_panel: Optional[OrgCenterPanel] = None
         self._project_panel: Optional[ProjectDashboardPanel] = None
         self._session_iterator: Optional[AsyncIterator[SessionEvent]] = None
         self._session_listener: Optional[asyncio.Task[None]] = None
@@ -206,6 +210,7 @@ class VortexTUI(App[None]):
         self._sessions_panel = self.query_one("#sessions-panel", SessionsPanel)
         self._analytics_panel = self.query_one("#analytics-panel", AnalyticsPanel)
         self._team_panel = self.query_one("#team-panel", TeamPanel)
+        self._org_panel = self.query_one("#org-panel", OrgCenterPanel)
         self._project_panel = self.query_one("#project-panel", ProjectDashboardPanel)
         self._panel_coalescer = PanelUpdateCoalescer(self, max(self._frame_interval / 2, 0.005))
         self.tui_settings = await self.settings_manager.load()
@@ -515,6 +520,13 @@ class VortexTUI(App[None]):
         status_panel = self.query_one("#status-panel", StatusPanel)
         status_panel.update_status(renderable)
         self._update_telemetry(snapshot)
+        if self._org_panel:
+            ops_snapshot = self.runtime.ops_center.aggregate()
+
+            def update_panel(snap: OpsSnapshot = ops_snapshot) -> None:
+                self._org_panel.update_snapshot(snap)
+
+            self._panel_update(update_panel)
 
     def _update_telemetry(self, snapshot: StatusSnapshot) -> None:
         if not self._telemetry_bar:
@@ -827,6 +839,39 @@ class VortexTUI(App[None]):
 
     async def action_analytics_focus(self) -> None:
         await self._focus_panel("analytics-panel")
+
+    async def action_org_focus(self) -> None:
+        await self._focus_panel("org-panel")
+
+    async def action_alerts_focus(self) -> None:
+        await self._focus_panel("org-panel")
+        alerts = self.runtime.ops_center.active_alerts()
+        if not alerts:
+            await self._announce("No active alerts")
+            return
+        panel = self._main_panel or self.query_one("#main-panel", MainPanel)
+
+        def display() -> None:
+            table = self.runtime.ops_center.alerts_table()
+            panel.show(table, plain_text="alerts")
+
+        self._panel_update(display)
+        if self.announcer:
+            await self.announcer.announce_alert(alerts[0].message)
+
+    async def action_graph_focus(self) -> None:
+        snapshot = self.runtime.knowledge_graph.snapshot()
+        panel = self._main_panel or self.query_one("#main-panel", MainPanel)
+
+        def display() -> None:
+            table = Table(title="Knowledge Graph Snapshot", expand=True)
+            table.add_column("Entities")
+            table.add_column("Relations")
+            table.add_row(str(len(snapshot.entities)), str(len(snapshot.relations)))
+            panel.show(table, plain_text="knowledge graph snapshot")
+
+        self._panel_update(display)
+        await self._focus_panel("main-panel")
 
     async def action_dashboard_open(self) -> None:
         summary = self._last_analytics

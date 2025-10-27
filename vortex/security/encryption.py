@@ -178,6 +178,41 @@ class SessionEncryptor:
         return base64.urlsafe_b64decode(payload)
 
 
+class SecretBox:
+    """Lightweight symmetric encryption helper.
+
+    The helper is purposely tiny so it can be used by subsystems that need
+    ephemeral tokens without wiring the heavier :class:`CredentialStore` flows.
+    Keys are generated using ``os.urandom`` when the ``cryptography`` package is
+    not available.
+    """
+
+    def __init__(self, key: Optional[bytes] = None) -> None:
+        if key is None:
+            key = self.generate_key()
+        self._key = key
+        self._fernet = Fernet(key) if Fernet else None
+
+    @staticmethod
+    def generate_key() -> bytes:
+        if Fernet:
+            return Fernet.generate_key()
+        return base64.urlsafe_b64encode(os.urandom(32))
+
+    def encrypt(self, payload: bytes) -> bytes:
+        if self._fernet:
+            return self._fernet.encrypt(payload)
+        return base64.urlsafe_b64encode(payload)
+
+    def decrypt(self, payload: bytes) -> bytes:
+        if self._fernet:
+            return self._fernet.decrypt(payload)
+        return base64.urlsafe_b64decode(payload)
+
+    def token(self) -> str:
+        return self._key.decode("utf-8")
+
+
 class NetworkEncryptor:
     """Encrypt payloads shared across the agent network."""
 
@@ -229,4 +264,5 @@ __all__ = [
     "DataEncryptor",
     "SessionEncryptor",
     "NetworkEncryptor",
+    "SecretBox",
 ]
